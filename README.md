@@ -36,7 +36,7 @@ cargo build --release
 Exécutez le programme en utilisant :
 
 ```bash
-./target/release/rust_unlocker
+./target/release/RustUnlocker
 ```
 
 Suivez les instructions à l'écran pour fournir le mot de passe cible et démarrer la recherche.
