@@ -16,6 +16,55 @@ fn main() {
     stdin().read_line(&mut target_password_hash).unwrap();
     target_password_hash = target_password_hash.trim().to_string();
 
+    // Demande à l'utilisateur s'il souhaite utiliser un dictionnaire
+    println!("Voulez-vous utiliser un dictionnaire pour brute-forcer le mot de passe ? (o/n)");
+    let mut use_dictionary = String::new();
+    stdin().read_line(&mut use_dictionary).unwrap();
+    use_dictionary = use_dictionary.trim().to_string();
+
+    let dictionary: Option<Vec<String>> = if use_dictionary.to_lowercase() == "o" {
+        // L'utilisateur souhaite utiliser un dictionnaire
+        println!("Voulez-vous utiliser un dictionnaire compressé en .zip intégré ? (o/n)");
+        let mut choice = String::new();
+        stdin().read_line(&mut choice).unwrap();
+        choice = choice.trim().to_string();
+
+        if choice.to_lowercase() == "o" {
+            // Utilisation du dictionnaire compressé intégré dans le binaire
+            Some(load_zipped_dictionary_from_embedded())
+        } else {
+            // Demande à l'utilisateur s'il souhaite utiliser un fichier ZIP personnalisé ou un fichier texte
+            println!("Voulez-vous utiliser un fichier ZIP personnalisé ? (o/n)");
+            let mut zip_choice = String::new();
+            stdin().read_line(&mut zip_choice).unwrap();
+            zip_choice = zip_choice.trim().to_string();
+
+            if zip_choice.to_lowercase() == "o" {
+                // Utilisation d'un fichier ZIP personnalisé
+                println!("Veuillez entrer le chemin du fichier ZIP :");
+                let mut zip_path = String::new();
+                stdin().read_line(&mut zip_path).unwrap();
+                zip_path = zip_path.trim().to_string();
+
+                println!("Veuillez entrer le nom du fichier dans le ZIP :");
+                let mut file_in_zip = String::new();
+                stdin().read_line(&mut file_in_zip).unwrap();
+                file_in_zip = file_in_zip.trim().to_string();
+
+                Some(load_zipped_dictionary(&zip_path, &file_in_zip))
+            } else {
+                // Charger un fichier de dictionnaire personnalisé
+                println!("Veuillez entrer le chemin du fichier dictionnaire :");
+                let mut dictionary_path = String::new();
+                stdin().read_line(&mut dictionary_path).unwrap();
+                dictionary_path = dictionary_path.trim().to_string();
+                Some(load_dictionary(&dictionary_path))
+            }
+        }
+    } else {
+        None  // Aucun dictionnaire utilisé
+    };
+
     // Tentative de détection automatique de l'algorithme de hachage
     let algorithm = match hashing::detect_algorithm(&target_password_hash) {
         Ok(algo) => {
@@ -30,47 +79,6 @@ fn main() {
             forced_algorithm.trim().to_string()
         }
     };
-
-    // Demande à l'utilisateur s'il souhaite utiliser un dictionnaire compressé en .zip
-    println!("Voulez-vous utiliser un dictionnaire compressé en .zip intégré ? (o/n)");
-    let mut choice = String::new();
-    stdin().read_line(&mut choice).unwrap();
-    choice = choice.trim().to_string();
-
-    let dictionary: Vec<String>;
-
-    if choice.to_lowercase() == "o" {
-        // Utilisation du dictionnaire compressé intégré dans le binaire
-        dictionary = load_zipped_dictionary_from_embedded();
-    } else {
-        // Demande à l'utilisateur s'il souhaite utiliser un fichier ZIP personnalisé ou un fichier texte
-        println!("Voulez-vous utiliser un fichier ZIP personnalisé ? (o/n)");
-        let mut zip_choice = String::new();
-        stdin().read_line(&mut zip_choice).unwrap();
-        zip_choice = zip_choice.trim().to_string();
-
-        if zip_choice.to_lowercase() == "o" {
-            // Utilisation d'un fichier ZIP personnalisé
-            println!("Veuillez entrer le chemin du fichier ZIP :");
-            let mut zip_path = String::new();
-            stdin().read_line(&mut zip_path).unwrap();
-            zip_path = zip_path.trim().to_string();
-
-            println!("Veuillez entrer le nom du fichier dans le ZIP :");
-            let mut file_in_zip = String::new();
-            stdin().read_line(&mut file_in_zip).unwrap();
-            file_in_zip = file_in_zip.trim().to_string();
-
-            dictionary = load_zipped_dictionary(&zip_path, &file_in_zip);
-        } else {
-            // Charger un fichier de dictionnaire personnalisé
-            println!("Veuillez entrer le chemin du fichier dictionnaire :");
-            let mut dictionary_path = String::new();
-            stdin().read_line(&mut dictionary_path).unwrap();
-            dictionary_path = dictionary_path.trim().to_string();
-            dictionary = load_dictionary(&dictionary_path);
-        }
-    }
 
     let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?";
     let is_running = Arc::new(Mutex::new(true));
@@ -97,7 +105,7 @@ fn main() {
         Arc::clone(&total_attempts), 
         Arc::clone(&attempts_per_second), 
         Arc::clone(&is_running),
-        Some(dictionary), // Utilisation du dictionnaire choisi
+        dictionary, // Utilisation du dictionnaire si fourni
     );
 
     let duration = start.elapsed();
