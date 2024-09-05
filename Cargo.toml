@@ -1,10 +1,17 @@
 [package]
-name = "RustUnlocker"
+name = "rust_unlocker"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-itertools= "0.13.0"
+itertools = "0.13.0"
+md5 = "0.7"
+sha1 = "0.10"
 sha2 = "0.10"
+base64 = "0.22.1"
+bcrypt = "0.15.1"
+argon2 = { version = "0.5.3", features = ["password-hash"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+zip = "2.2.0"

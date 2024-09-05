@@ -1,0 +1,22 @@
+image: rust:latest
+
+stages:
+  - build
+  - test
+
+# Étape de build
+build:
+  stage: build
+  script:
+    - cargo build --verbose
+  only:
+    - main
+
+# Étape de test
+test:
+  stage: test
+  script:
+    - cargo test --verbose
+  only:
+    - merge_requests
+    - main

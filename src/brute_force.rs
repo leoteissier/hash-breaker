@@ -1,61 +1,69 @@
-use itertools::Itertools;
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Instant;
-
 use crate::hashing::hash_password;
 
 pub fn start_brute_force(
-    charset: &str, 
-    max_length: usize, 
+    charset: &str,
     target_password_hash: &str,
-    total_attempts: Arc<Mutex<u64>>, 
-    attempts_per_second: Arc<Mutex<u64>>, 
-    is_running: Arc<Mutex<bool>>, 
-    start: Instant
+    algorithm: &str,
+    total_attempts: Arc<Mutex<u64>>,
+    attempts_per_second: Arc<Mutex<u64>>,
+    is_running: Arc<Mutex<bool>>,
+    dictionary: Option<Vec<String>>,  // Option pour le dictionnaire
 ) {
-    let charset_chars: Vec<char> = charset.chars().collect();
-    let is_found = Arc::new(Mutex::new(false));
+    if let Some(dict) = dictionary {
+        // Si un dictionnaire est fourni, ne génère pas de combinaisons, mais utilise le dictionnaire
+        for word in dict {
+            let attempt_hash = hash_password(&word, algorithm);
+            *total_attempts.lock().unwrap() += 1;
+            *attempts_per_second.lock().unwrap() += 1;
 
-    let mut handles = vec![];
-
-    for length in 1..=max_length {
-        let charset_clone = charset_chars.clone();
-        let target_hash_clone = target_password_hash.to_string();
-        let total_attempts_clone = Arc::clone(&total_attempts);
-        let is_found_clone = Arc::clone(&is_found);
-        let attempts_per_second_clone = Arc::clone(&attempts_per_second);
-        let is_running_clone = Arc::clone(&is_running);
-
-        let handle = thread::spawn(move || {
-            for combination in charset_clone.iter().combinations_with_replacement(length) {
-                if *is_found_clone.lock().unwrap() {
-                    break;
-                }
-                let attempt = combination.iter().cloned().collect::<String>();
-                let attempt_hash = hash_password(&attempt);
-
-                {
-                    let mut total = total_attempts_clone.lock().unwrap();
-                    *total += 1;
-                    let mut attempts = attempts_per_second_clone.lock().unwrap();
-                    *attempts += 1;
-                }
-
-                if attempt_hash == target_hash_clone {
-                    *is_found_clone.lock().unwrap() = true;
-                    *is_running_clone.lock().unwrap() = false;
-                    let duration = start.elapsed();
-                    let total = *total_attempts_clone.lock().unwrap();
-                    println!("\rMot de passe trouvé: {} en {:?} secondes, avec {} tentatives", attempt, duration, total);
-                    break;
-                }
+            if attempt_hash == target_password_hash {
+                println!("\nMot de passe trouvé : {}", word);
+                *is_running.lock().unwrap() = false;
+                return;
             }
-        });
-        handles.push(handle);
+        }
+        // Si le mot de passe n'est pas trouvé dans le dictionnaire, on arrête la recherche
+        *is_running.lock().unwrap() = false;
+        return;
     }
 
-    for handle in handles {
-        handle.join().unwrap();
+    // Si aucun dictionnaire n'est fourni, générer toutes les combinaisons possibles
+    for length in 1.. {
+        let combinations = generate_combinations(charset, length);
+        for attempt in combinations {
+            let attempt_hash = hash_password(&attempt, algorithm);
+            *total_attempts.lock().unwrap() += 1;
+            *attempts_per_second.lock().unwrap() += 1;
+
+            if attempt_hash == target_password_hash {
+                println!("\nMot de passe trouvé : {}", attempt);
+                *is_running.lock().unwrap() = false;
+                return;
+            }
+        }
+    }
+    *is_running.lock().unwrap() = false;
+}
+
+
+// Fonction récursive pour générer toutes les combinaisons possibles de caractères
+pub fn generate_combinations(charset: &str, length: usize) -> Vec<String> {
+    let mut combinations = Vec::new();
+    generate_combinations_recursive(charset, length, String::new(), &mut combinations);
+    combinations
+}
+
+// Fonction récursive qui génère les combinaisons
+fn generate_combinations_recursive(charset: &str, length: usize, current: String, combinations: &mut Vec<String>) {
+    if length == 0 {
+        combinations.push(current);
+    } else {
+        for c in charset.chars() {
+            let mut next = current.clone();
+            next.push(c);
+            generate_combinations_recursive(charset, length - 1, next, combinations);
+        }
     }
 }
+

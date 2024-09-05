@@ -17,7 +17,7 @@ pub fn start_telemetry_thread(
                     *num = 0;
                     val
                 };
-                print!("\rTentatives par seconde: {}          ", attempts);
+                print!("\rTentatives par seconde: {} ", attempts);
                 io::stdout().flush().unwrap();
                 last_print = Instant::now();
             }
