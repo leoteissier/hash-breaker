@@ -1,4 +1,4 @@
-use rust_unlocker::hashing::{hash_password, detect_algorithm};
+use hash_breaker::hashing::{hash_password, detect_algorithm};
 
 #[test]
 fn test_md5_hash() {
