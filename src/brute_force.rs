@@ -11,30 +11,46 @@ pub fn start_brute_force(
     dictionary: Option<Vec<String>>,  // Option pour le dictionnaire
 ) {
     if let Some(dict) = dictionary {
-        // Si un dictionnaire est fourni, ne génère pas de combinaisons, mais utilise le dictionnaire
-        for word in dict {
-            let attempt_hash = hash_password(&word, algorithm);
-            *total_attempts.lock().unwrap() += 1;
-            *attempts_per_second.lock().unwrap() += 1;
-
-            if attempt_hash == target_password_hash {
-                println!("\nMot de passe trouvé : {}", word);
-                *is_running.lock().unwrap() = false;
-                return;
+        if !dict.is_empty() {
+            for (_i, word) in dict.iter().enumerate() {
+                // Convert word from bytes if necessary
+                let word_str = String::from_utf8_lossy(word.as_bytes()).to_string();
+                let attempt_hash = hash_password(&word_str, algorithm);
+    
+                // Mises à jour atomiques des compteurs
+                {
+                    let mut total = total_attempts.lock().unwrap();
+                    *total += 1;
+    
+                    let mut attempts_per_sec = attempts_per_second.lock().unwrap();
+                    *attempts_per_sec += 1;
+                }
+    
+                // Vérification si le mot de passe est trouvé
+                if attempt_hash == target_password_hash {
+                    println!("\nMot de passe trouvé : {}", word_str);
+                    *is_running.lock().unwrap() = false;
+                    return;
+                }
             }
+            *is_running.lock().unwrap() = false;
+            return;
         }
-        // Si le mot de passe n'est pas trouvé dans le dictionnaire, on arrête la recherche
-        *is_running.lock().unwrap() = false;
-        return;
     }
 
-    // Si aucun dictionnaire n'est fourni, générer toutes les combinaisons possibles
+    // If no dictionary, use brute-force character generation
     for length in 1.. {
-        let combinations = generate_combinations(charset, length);
-        for attempt in combinations {
+        for attempt in generate_combinations_iter(charset, length) {
+
             let attempt_hash = hash_password(&attempt, algorithm);
-            *total_attempts.lock().unwrap() += 1;
-            *attempts_per_second.lock().unwrap() += 1;
+
+            {
+                let mut total = total_attempts.lock().unwrap();
+                *total += 1;
+
+                let mut attempts_per_sec = attempts_per_second.lock().unwrap();
+                *attempts_per_sec += 1;
+            }
 
             if attempt_hash == target_password_hash {
                 println!("\nMot de passe trouvé : {}", attempt);
@@ -43,27 +59,21 @@ pub fn start_brute_force(
             }
         }
     }
+
     *is_running.lock().unwrap() = false;
 }
 
 
-// Fonction récursive pour générer toutes les combinaisons possibles de caractères
-pub fn generate_combinations(charset: &str, length: usize) -> Vec<String> {
-    let mut combinations = Vec::new();
-    generate_combinations_recursive(charset, length, String::new(), &mut combinations);
-    combinations
-}
-
-// Fonction récursive qui génère les combinaisons
-fn generate_combinations_recursive(charset: &str, length: usize, current: String, combinations: &mut Vec<String>) {
-    if length == 0 {
-        combinations.push(current);
-    } else {
-        for c in charset.chars() {
-            let mut next = current.clone();
-            next.push(c);
-            generate_combinations_recursive(charset, length - 1, next, combinations);
+/// Générer les combinaisons de caractères à la volée
+pub fn generate_combinations_iter(charset: &str, length: usize) -> Box<dyn Iterator<Item = String>> {
+    let charset_vec: Vec<char> = charset.chars().collect();
+    Box::new((0..charset_vec.len().pow(length as u32)).map(move |i| {
+        let mut result = String::with_capacity(length);
+        let mut num = i;
+        for _ in 0..length {
+            result.push(charset_vec[num % charset_vec.len()]);
+            num /= charset_vec.len();
         }
-    }
+        result
+    }))
 }
-
