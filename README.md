@@ -1,4 +1,4 @@
-# Rust Unlocker
+# Hash Breacker
 
 Ce projet est une implémentation simple d'un outil de brute-force de mot de passe en Rust. Il utilise des combinaisons de caractères pour essayer de deviner un mot de passe fourni par l'utilisateur jusqu'à ce que le bon mot de passe soit trouvé ou que toutes les combinaisons possibles soient épuisées.
 
@@ -21,8 +21,8 @@ Pour exécuter ce projet, vous aurez besoin de Rust installé sur votre machine.
 Clonez ce dépôt sur votre machine locale en utilisant :
 
 ```bash
-git clone https://github.com/leoteissier/RustUnlocker.git
-cd RustUnlocker
+git clone https://github.com/leoteissier/hash-breacker.git
+cd hash-breacker
 ```
 
 Compilez le projet en utilisant Cargo :
@@ -36,7 +36,7 @@ cargo build --release
 Exécutez le programme en utilisant :
 
 ```bash
-./target/release/RustUnlocker
+./target/release/hash-breacker
 ```
 
 Suivez les instructions à l'écran pour fournir le mot de passe cible et démarrer la recherche.
