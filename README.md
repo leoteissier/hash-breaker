@@ -21,7 +21,7 @@ Pour exécuter ce projet, vous aurez besoin de Rust installé sur votre machine.
 Clonez ce dépôt sur votre machine locale en utilisant :
 
 ```bash
-git clone https://github.com/leoteissier/hash-breacker.git
+git clone https://gitlab.com/leoteissier/hash-breacker.git
 cd hash-breacker
 ```
 
