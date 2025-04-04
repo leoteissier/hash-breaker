@@ -1,4 +1,3 @@
-
 # HashBreaker
 
 HashBreaker est une implémentation simple d'un outil de brute-force de mot de passe en Rust. Il utilise des combinaisons de caractères ou des dictionnaires pour essayer de deviner un mot de passe haché jusqu'à ce que le bon mot de passe soit trouvé ou que toutes les combinaisons possibles soient épuisées.
