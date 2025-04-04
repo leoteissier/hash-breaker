@@ -1,5 +1,5 @@
-use rust_unlocker::brute_force;
-use rust_unlocker::hashing::hash_password;
+use hash_breaker::brute_force;
+use hash_breaker::hashing::hash_password;
 use std::sync::{Arc, Mutex};
 
 #[test]
