@@ -34,7 +34,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -57,7 +57,7 @@ jobs:
         run: cargo build --release
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: hash-breaker-${{ runner.os }}-${{ matrix.rust }}
           path: target/release/hash_breaker*
