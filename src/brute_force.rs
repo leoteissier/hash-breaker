@@ -1,7 +1,5 @@
 use std::sync::{Arc, Mutex};
 use std::io::BufRead;
-use std::io::{self, Write};
-use std::time::{Instant, Duration};
 use std::thread;
 
 pub fn start_brute_force(
@@ -53,7 +51,6 @@ pub fn start_brute_force(
 
     if let Some(dict) = dictionary {
         if !dict.is_empty() {
-            use std::thread;
             let chunk_size = (dict.len() + num_threads - 1) / num_threads;
             let mut handles = Vec::new();
             let found_flag = Arc::clone(&is_running);
@@ -91,7 +88,6 @@ pub fn start_brute_force(
     }
 
     // If no dictionary, use brute-force character generation
-    use std::thread;
     let charset_vec: Vec<char> = charset.chars().collect();
     let mut handles = Vec::new();
     let found_flag = Arc::clone(&is_running);
@@ -166,26 +162,4 @@ pub fn iter_dictionary_file(path: &str) -> Box<dyn Iterator<Item = String>> {
     Box::new(reader.lines().filter_map(|l| l.ok()))
 }
 
-pub fn start_telemetry_thread(
-    is_running: Arc<Mutex<bool>>, 
-    total_attempts: Arc<Mutex<u64>>,
-    attempts_per_second: Arc<Mutex<u64>>,
-) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        let mut last_print = Instant::now();
-        while *is_running.lock().unwrap() {
-            if last_print.elapsed() >= Duration::from_secs(1) {
-                let attempts = {
-                    let mut num = attempts_per_second.lock().unwrap();
-                    let val = *num;
-                    *num = 0;  // Reset the counter for attempts per second
-                    val
-                };
-                let total = *total_attempts.lock().unwrap();
-                print!("\rRecherche en cours - Tentatives: {} | Tentatives par seconde: {}", total, attempts);
-                io::stdout().flush().unwrap();
-                last_print = Instant::now();
-            }
-        }
-    })
-}
+

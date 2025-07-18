@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 use std::time::{Instant, Duration};
 use std::io::{self, Write};
 use std::thread;
@@ -47,28 +47,4 @@ pub fn start_spinner_thread(
     })
 }
 
-// Nouvelle fonction pour démarrer la télémétrie asynchrone via un channel
-pub fn start_telemetry_channel_thread(
-    is_running: Arc<Mutex<bool>>,
-    rx: mpsc::Receiver<(u64, u64)>,
-) -> std::thread::JoinHandle<()> {
-    use std::time::Instant;
-    use std::io::{self, Write};
-    std::thread::spawn(move || {
-        let mut last_print = Instant::now();
-        let mut total = 0u64;
-        let mut attempts = 0u64;
-        while *is_running.lock().unwrap() {
-            // On attend les mises à jour du channel
-            if let Ok((t, a)) = rx.try_recv() {
-                total = t;
-                attempts = a;
-            }
-            if last_print.elapsed() >= std::time::Duration::from_secs(1) {
-                print!("\rRecherche en cours - Tentatives: {} | Tentatives par seconde: {}", total, attempts);
-                io::stdout().flush().unwrap();
-                last_print = Instant::now();
-            }
-        }
-    })
-}
+

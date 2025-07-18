@@ -5,7 +5,7 @@ mod utils;
 
 use utils::load_zipped_dictionary;
 use std::io::stdin;
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use num_cpus;
 use std::fs;
@@ -34,7 +34,7 @@ fn download_rockyou() -> Option<String> {
     match reqwest::blocking::get(url) {
         Ok(resp) => {
             let mut out = std::fs::File::create(dest).ok()?;
-            let mut content = resp.bytes().ok()?;
+            let content = resp.bytes().ok()?;
             std::io::copy(&mut content.as_ref(), &mut out).ok()?;
             println!("\x1b[32mDictionnaire téléchargé avec succès !\x1b[0m");
             Some(dest.to_string())
@@ -54,7 +54,7 @@ fn main() {
     target_password_hash = target_password_hash.trim().to_string();
 
     // Détection automatique des dictionnaires
-    let mut dictionaries = detect_dictionaries();
+    let dictionaries = detect_dictionaries();
     let dictionary_path = if dictionaries.is_empty() {
         println!("\x1b[31mAucun dictionnaire trouvé dans ./ ou ./assets.\x1b[0m");
         println!("Voulez-vous télécharger un dictionnaire populaire (rockyou.txt) ? (o/n)");
@@ -109,46 +109,59 @@ fn main() {
         }
     };
 
-    // Demande à l'utilisateur de personnaliser le charset
-    println!("Voulez-vous personnaliser le jeu de caractères utilisé pour le brute-force ? (o/n)");
-    let mut custom_charset = String::new();
-    stdin().read_line(&mut custom_charset).unwrap();
-    let custom_charset = custom_charset.trim().to_lowercase();
-    let charset = if custom_charset == "o" {
-        println!("Inclure les chiffres ? (o/n)");
-        let mut chiffres = String::new();
-        stdin().read_line(&mut chiffres).unwrap();
-        let chiffres = chiffres.trim().to_lowercase() == "o";
-        println!("Inclure les minuscules ? (o/n)");
-        let mut minuscules = String::new();
-        stdin().read_line(&mut minuscules).unwrap();
-        let minuscules = minuscules.trim().to_lowercase() == "o";
-        println!("Inclure les majuscules ? (o/n)");
-        let mut majuscules = String::new();
-        stdin().read_line(&mut majuscules).unwrap();
-        let majuscules = majuscules.trim().to_lowercase() == "o";
-        println!("Inclure les symboles spéciaux ? (o/n)");
-        let mut symboles = String::new();
-        stdin().read_line(&mut symboles).unwrap();
-        let symboles = symboles.trim().to_lowercase() == "o";
-        let mut cs = String::new();
-        if chiffres { cs.push_str("0123456789"); }
-        if minuscules { cs.push_str("abcdefghijklmnopqrstuvwxyz"); }
-        if majuscules { cs.push_str("ABCDEFGHIJKLMNOPQRSTUVWXYZ"); }
-        if symboles { cs.push_str("!@#$%^&*()_+-=[]{}|;:',.<>/?"); }
-        if cs.is_empty() {
-            println!("Aucun jeu de caractères sélectionné, utilisation du jeu complet par défaut.");
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
+    // Demande à l'utilisateur de personnaliser le charset SEULEMENT si pas de dictionnaire
+    let charset = if dictionary.is_none() {
+        println!("Voulez-vous personnaliser le jeu de caractères utilisé pour le brute-force ? (o/n) [N]");
+        let mut custom_charset = String::new();
+        stdin().read_line(&mut custom_charset).unwrap();
+        let custom_charset = custom_charset.trim().to_lowercase();
+        if custom_charset == "o" {
+            println!("Inclure les chiffres ? (o/n) [O]");
+            let mut chiffres = String::new();
+            stdin().read_line(&mut chiffres).unwrap();
+            let chiffres = chiffres.trim().to_lowercase();
+            let chiffres = chiffres.is_empty() || chiffres == "o";
+            
+            println!("Inclure les minuscules ? (o/n) [O]");
+            let mut minuscules = String::new();
+            stdin().read_line(&mut minuscules).unwrap();
+            let minuscules = minuscules.trim().to_lowercase();
+            let minuscules = minuscules.is_empty() || minuscules == "o";
+            
+            println!("Inclure les majuscules ? (o/n) [O]");
+            let mut majuscules = String::new();
+            stdin().read_line(&mut majuscules).unwrap();
+            let majuscules = majuscules.trim().to_lowercase();
+            let majuscules = majuscules.is_empty() || majuscules == "o";
+            
+            println!("Inclure les symboles spéciaux ? (o/n) [N]");
+            let mut symboles = String::new();
+            stdin().read_line(&mut symboles).unwrap();
+            let symboles = symboles.trim().to_lowercase();
+            let symboles = symboles == "o";
+            
+            let mut cs = String::new();
+            if chiffres { cs.push_str("0123456789"); }
+            if minuscules { cs.push_str("abcdefghijklmnopqrstuvwxyz"); }
+            if majuscules { cs.push_str("ABCDEFGHIJKLMNOPQRSTUVWXYZ"); }
+            if symboles { cs.push_str("!@#$%^&*()_+-=[]{}|;:',.<>/?"); }
+            if cs.is_empty() {
+                println!("Aucun jeu de caractères sélectionné, utilisation du jeu complet par défaut.");
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
+            } else {
+                cs
+            }
         } else {
-            cs
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
         }
     } else {
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
+        // Si on a un dictionnaire, on utilise un charset vide car on ne fait que du dictionnaire
+        String::new()
     };
 
     // Demande à l'utilisateur s'il souhaite utiliser un mode gros dictionnaire (streaming)
     let mut use_streaming = String::new();
-    println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ? Utiliser le mode streaming ? (o/n)");
+    println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ? Utiliser le mode streaming ? (o/n) [N]");
     stdin().read_line(&mut use_streaming).unwrap();
     let use_streaming = use_streaming.trim().to_lowercase() == "o";
     let mut streaming_path = String::new();
@@ -160,11 +173,11 @@ fn main() {
 
     let total_cores = num_cpus::get();
     println!("Votre machine possède {} cœurs logiques.", total_cores);
-    println!("Voulez-vous utiliser tous les cœurs disponibles ? (o/n)");
+    println!("Voulez-vous utiliser tous les cœurs disponibles ? (o/n) [O]");
     let mut use_all_cores = String::new();
     stdin().read_line(&mut use_all_cores).unwrap();
     let use_all_cores = use_all_cores.trim().to_lowercase();
-    let num_threads = if use_all_cores == "o" {
+    let num_threads = if use_all_cores.is_empty() || use_all_cores == "o" {
         total_cores
     } else {
         println!("Combien de cœurs souhaitez-vous utiliser ? (1-{})", total_cores);
@@ -178,11 +191,11 @@ fn main() {
     let attempts_per_second = Arc::new(Mutex::new(0));
     let total_attempts = Arc::new(Mutex::new(0));
 
-    // Channel pour la télémétrie asynchrone
-    let (tx, rx) = mpsc::channel();
-    let telemetry_handle = telemetry::start_telemetry_channel_thread(
+    // Télémétrie simple qui fonctionne
+    let telemetry_handle = telemetry::start_telemetry_thread(
         Arc::clone(&is_running),
-        rx,
+        Arc::clone(&total_attempts),
+        Arc::clone(&attempts_per_second),
     );
     // Le spinner peut rester inchangé
     let spinner_handle = telemetry::start_spinner_thread(
@@ -214,8 +227,7 @@ fn main() {
     
     // Display results
     let total = *total_attempts.lock().unwrap();
-    let per_sec = *attempts_per_second.lock().unwrap();
-    let _ = tx.send((total, per_sec));
+    let _per_sec = *attempts_per_second.lock().unwrap();
     println!("\x1b[32m\nRecherche complétée en {:?} secondes avec {} tentatives\x1b[0m", duration, total);
     println!("\x1b[1;33mSi le mot de passe a été trouvé, il est affiché ci-dessus.\x1b[0m");
 }
