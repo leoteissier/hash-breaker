@@ -29,7 +29,16 @@ fn detect_dictionaries() -> Vec<String> {
 
 fn download_rockyou() -> Option<String> {
     let url = "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt";
-    let dest = "rockyou.txt";
+    
+    // Créer le dossier dictionaries s'il n'existe pas
+    if !std::path::Path::new("dictionaries").exists() {
+        if let Err(e) = std::fs::create_dir("dictionaries") {
+            println!("\x1b[31m❌ Impossible de créer le dossier dictionaries: {}\x1b[0m", e);
+            return None;
+        }
+    }
+    
+    let dest = "dictionaries/rockyou.txt";
     println!("\x1b[33mTéléchargement du dictionnaire rockyou.txt (14 millions de mots de passe)...\x1b[0m");
     println!("\x1b[36mSource: https://github.com/brannondorsey/naive-hashcat\x1b[0m");
     match reqwest::blocking::get(url) {
@@ -44,7 +53,7 @@ fn download_rockyou() -> Option<String> {
         Err(e) => {
             println!("\x1b[31m❌ Échec du téléchargement du dictionnaire.\x1b[0m");
             println!("\x1b[33mErreur: {}\x1b[0m", e);
-            println!("\x1b[36m💡 Vous pouvez télécharger manuellement rockyou.txt et le placer dans le dossier du programme.\x1b[0m");
+            println!("\x1b[36m💡 Vous pouvez télécharger manuellement rockyou.txt et le placer dans le dossier dictionaries/.\x1b[0m");
             None
         }
     }

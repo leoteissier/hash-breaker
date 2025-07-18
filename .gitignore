@@ -7,3 +7,5 @@ Cargo.lock
 dictionaries
 
 *.DS_Store
+
+/dictionaries
