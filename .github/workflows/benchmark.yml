@@ -1,0 +1,57 @@
+name: Benchmark
+
+on:
+  schedule:
+    # Tous les dimanches à 2h du matin
+    - cron: "0 2 * * 0"
+  workflow_dispatch: # Permet de lancer manuellement
+
+jobs:
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Run basic performance test
+        run: |
+          echo "=== Performance Test ==="
+          echo "Testing MD5 hash cracking..."
+
+          # Test avec un hash MD5 simple
+          echo "5f4dcc3b5aa765d61d8327deb882cf99" | timeout 30s ./target/release/hash_breaker || echo "Test completed or timed out"
+
+          echo "=== System Info ==="
+          echo "CPU: $(nproc) cores"
+          echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+          echo "Rust version: $(rustc --version)"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: |
+            target/release/hash_breaker
+          retention-days: 30

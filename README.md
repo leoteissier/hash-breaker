@@ -125,6 +125,37 @@ hash-breaker/
 └── Cargo.toml           # Configuration du projet
 ```
 
+## CI/CD et Tests
+
+Ce projet utilise GitHub Actions pour automatiser les tests et les déploiements :
+
+### 🚀 **Tests Automatiques**
+
+- **Tests unitaires** : Vérification de tous les algorithmes de hachage
+- **Tests d'intégration** : Validation du brute-force et de la détection d'algorithmes
+- **Formatage** : Vérification du style de code avec `rustfmt`
+- **Linting** : Analyse statique avec `clippy`
+- **Audit de sécurité** : Vérification des vulnérabilités avec `cargo audit`
+
+### 📦 **Build Multi-Plateforme**
+
+- **Linux** (x86_64)
+- **macOS** (x86_64)
+- **Windows** (x86_64)
+
+### 🎯 **Releases Automatiques**
+
+- Création automatique de releases lors du push de tags `v*`
+- Binaires pré-compilés pour toutes les plateformes
+- Notes de release générées automatiquement
+
+### 📊 **Benchmarks**
+
+- Tests de performance hebdomadaires
+- Monitoring des performances du programme
+
+[![CI/CD Pipeline](https://github.com/leoteissier/hash-breaker/workflows/CI/badge.svg)](https://github.com/leoteissier/hash-breaker/actions)
+
 ## Licence
 
 Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus d'informations.
