@@ -7,7 +7,7 @@ WORKDIR /app
 # Copier les fichiers Cargo.toml et Cargo.lock
 COPY Cargo.toml Cargo.lock ./
 
-# Télécharger les dépendances (cela permet de garder les dépendances en cache)
+# Télécharger les dépendances
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release
 

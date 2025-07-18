@@ -35,10 +35,7 @@ pub fn hash_password(password: &str, algorithm: &str) -> String {
             hashed
         }
         "argon2" => {
-            // Générer un sel sécurisé
             let salt = SaltString::generate(&mut OsRng);
-
-            // Utiliser Argon2 pour hacher le mot de passe
             let argon2 = Argon2::default();
             let hash = argon2.hash_password(password.as_bytes(), &salt).unwrap();
             hash.to_string()

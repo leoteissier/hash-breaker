@@ -15,3 +15,5 @@ bcrypt = "0.15.1"
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 zip = "2.2.0"
+num_cpus = "1.16"
+reqwest = { version = "0.11", features = ["blocking", "rustls-tls"] }

@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, BufRead, BufReader};
 use zip::read::ZipArchive;
 
 /// Fonction pour charger un fichier texte depuis une archive ZIP sur le disque
@@ -70,4 +70,11 @@ pub fn load_zipped_dictionary_from_embedded() -> Vec<String> {
 
     // Split lines into Vec<String>
     contents_str.lines().map(|line| line.trim().to_string()).collect()
+}
+
+/// Fonction pour itérer paresseusement sur un fichier dictionnaire texte
+pub fn iter_dictionary_file(path: &str) -> impl Iterator<Item = String> {
+    let file = File::open(path).expect("Impossible d'ouvrir le fichier dictionnaire");
+    let reader = BufReader::new(file);
+    reader.lines().filter_map(|l| l.ok())
 }

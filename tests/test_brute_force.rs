@@ -32,6 +32,9 @@ fn test_brute_force_found_with_dictionary() {
         Arc::clone(&attempts_per_second),
         Arc::clone(&is_running),
         Some(dictionary.clone()), // Passer le dictionnaire
+        false, // use_streaming
+        String::new(), // streaming_path
+        1, // num_threads
     );
 
     // Vérifier que la recherche s'est bien arrêtée
@@ -71,6 +74,9 @@ fn test_brute_force_not_found_with_dictionary() {
         Arc::clone(&attempts_per_second),
         Arc::clone(&is_running),
         Some(dictionary.clone()), // Passer le dictionnaire
+        false, // use_streaming
+        String::new(), // streaming_path
+        1, // num_threads
     );
 
     // Vérifier que la recherche s'est bien arrêtée
@@ -103,6 +109,9 @@ fn test_brute_force_found_without_dictionary() {
         Arc::clone(&attempts_per_second),
         Arc::clone(&is_running),
         None,  // Pas de dictionnaire
+        false, // use_streaming
+        String::new(), // streaming_path
+        1, // num_threads
     );
 
     // Vérifier que la recherche s'est bien arrêtée

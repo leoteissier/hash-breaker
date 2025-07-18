@@ -1,5 +1,8 @@
 use std::sync::{Arc, Mutex};
-use crate::hashing::hash_password;
+use std::io::BufRead;
+use std::io::{self, Write};
+use std::time::{Instant, Duration};
+use std::thread;
 
 pub fn start_brute_force(
     charset: &str,
@@ -8,72 +11,181 @@ pub fn start_brute_force(
     total_attempts: Arc<Mutex<u64>>,
     attempts_per_second: Arc<Mutex<u64>>,
     is_running: Arc<Mutex<bool>>,
-    dictionary: Option<Vec<String>>,  // Option pour le dictionnaire
+    dictionary: Option<Vec<String>>,
+    use_streaming: bool,
+    streaming_path: String,
+    num_threads: usize,
 ) {
+    if use_streaming {
+        let mut handles = Vec::new();
+        let found_flag = Arc::clone(&is_running);
+        for thread_id in 0..num_threads {
+            let path = streaming_path.clone();
+            let target_password_hash = target_password_hash.to_string();
+            let algorithm = algorithm.to_string();
+            let total_attempts = Arc::clone(&total_attempts);
+            let attempts_per_second = Arc::clone(&attempts_per_second);
+            let found_flag = Arc::clone(&found_flag);
+            let handle = thread::spawn(move || {
+                for (i, word) in iter_dictionary_file(&path).enumerate() {
+                    if i % num_threads != thread_id { continue; }
+                    if !*found_flag.lock().unwrap() { break; }
+                    let attempt_hash = crate::hashing::hash_password(&word, &algorithm);
+                    {
+                        let mut total = total_attempts.lock().unwrap();
+                        *total += 1;
+                        let mut attempts_per_sec = attempts_per_second.lock().unwrap();
+                        *attempts_per_sec += 1;
+                    }
+                    if attempt_hash == target_password_hash {
+                        println!("\n\x1b[1;32mMot de passe trouvé : {}\x1b[0m", word);
+                        *found_flag.lock().unwrap() = false;
+                        break;
+                    }
+                }
+            });
+            handles.push(handle);
+        }
+        for handle in handles { let _ = handle.join(); }
+        *is_running.lock().unwrap() = false;
+        return;
+    }
+
     if let Some(dict) = dictionary {
         if !dict.is_empty() {
-            for (_i, word) in dict.iter().enumerate() {
-                // Convert word from bytes if necessary
-                let word_str = String::from_utf8_lossy(word.as_bytes()).to_string();
-                let attempt_hash = hash_password(&word_str, algorithm);
-    
-                // Mises à jour atomiques des compteurs
-                {
-                    let mut total = total_attempts.lock().unwrap();
-                    *total += 1;
-    
-                    let mut attempts_per_sec = attempts_per_second.lock().unwrap();
-                    *attempts_per_sec += 1;
-                }
-    
-                // Vérification si le mot de passe est trouvé
-                if attempt_hash == target_password_hash {
-                    println!("\nMot de passe trouvé : {}", word_str);
-                    *is_running.lock().unwrap() = false;
-                    return;
-                }
+            use std::thread;
+            let chunk_size = (dict.len() + num_threads - 1) / num_threads;
+            let mut handles = Vec::new();
+            let found_flag = Arc::clone(&is_running);
+            for chunk in dict.chunks(chunk_size) {
+                let chunk = chunk.to_owned();
+                let target_password_hash = target_password_hash.to_string();
+                let algorithm = algorithm.to_string();
+                let total_attempts = Arc::clone(&total_attempts);
+                let attempts_per_second = Arc::clone(&attempts_per_second);
+                let found_flag = Arc::clone(&found_flag);
+                let handle = thread::spawn(move || {
+                    for word in chunk {
+                        if !*found_flag.lock().unwrap() { break; }
+                        let word_str = String::from_utf8_lossy(word.as_bytes()).to_string();
+                        let attempt_hash = crate::hashing::hash_password(&word_str, &algorithm);
+                        {
+                            let mut total = total_attempts.lock().unwrap();
+                            *total += 1;
+                            let mut attempts_per_sec = attempts_per_second.lock().unwrap();
+                            *attempts_per_sec += 1;
+                        }
+                        if attempt_hash == target_password_hash {
+                            println!("\n\x1b[1;32mMot de passe trouvé : {}\x1b[0m", word_str);
+                            *found_flag.lock().unwrap() = false;
+                            break;
+                        }
+                    }
+                });
+                handles.push(handle);
             }
+            for handle in handles { let _ = handle.join(); }
             *is_running.lock().unwrap() = false;
             return;
         }
     }
 
     // If no dictionary, use brute-force character generation
-    for length in 1.. {
-        for attempt in generate_combinations_iter(charset, length) {
-
-            let attempt_hash = hash_password(&attempt, algorithm);
-
-            {
-                let mut total = total_attempts.lock().unwrap();
-                *total += 1;
-
-                let mut attempts_per_sec = attempts_per_second.lock().unwrap();
-                *attempts_per_sec += 1;
+    use std::thread;
+    let charset_vec: Vec<char> = charset.chars().collect();
+    let mut handles = Vec::new();
+    let found_flag = Arc::clone(&is_running);
+    for thread_id in 0..num_threads {
+        let charset_vec = charset_vec.clone();
+        let target_password_hash = target_password_hash.to_string();
+        let algorithm = algorithm.to_string();
+        let total_attempts = Arc::clone(&total_attempts);
+        let attempts_per_second = Arc::clone(&attempts_per_second);
+        let found_flag = Arc::clone(&found_flag);
+        let handle = thread::spawn(move || {
+            for length in 1.. {
+                let iter = if length == 1 {
+                    Box::new(charset_vec.iter().enumerate().filter_map(move |(i, &c)| {
+                        if i % num_threads == thread_id {
+                            Some(c.to_string())
+                        } else {
+                            None
+                        }
+                    })) as Box<dyn Iterator<Item = String>>
+                } else {
+                    Box::new(generate_combinations_iter_with_prefix(charset_vec.clone(), length, thread_id, num_threads)) as Box<dyn Iterator<Item = String>>
+                };
+                for attempt in iter {
+                    if !*found_flag.lock().unwrap() { break; }
+                    let attempt_hash = crate::hashing::hash_password(&attempt, &algorithm);
+                    {
+                        let mut total = total_attempts.lock().unwrap();
+                        *total += 1;
+                        let mut attempts_per_sec = attempts_per_second.lock().unwrap();
+                        *attempts_per_sec += 1;
+                    }
+                    if attempt_hash == target_password_hash {
+                        println!("\n\x1b[1;32mMot de passe trouvé : {}\x1b[0m", attempt);
+                        *found_flag.lock().unwrap() = false;
+                        break;
+                    }
+                }
+                if !*found_flag.lock().unwrap() { break; }
             }
-
-            if attempt_hash == target_password_hash {
-                println!("\nMot de passe trouvé : {}", attempt);
-                *is_running.lock().unwrap() = false;
-                return;
-            }
-        }
+        });
+        handles.push(handle);
     }
-
+    for handle in handles { let _ = handle.join(); }
     *is_running.lock().unwrap() = false;
 }
 
-
-/// Générer les combinaisons de caractères à la volée
-pub fn generate_combinations_iter(charset: &str, length: usize) -> Box<dyn Iterator<Item = String>> {
-    let charset_vec: Vec<char> = charset.chars().collect();
-    Box::new((0..charset_vec.len().pow(length as u32)).map(move |i| {
+// Génère les combinaisons de longueur 'length' commençant par les préfixes attribués à ce thread
+pub fn generate_combinations_iter_with_prefix(
+    charset_vec: Vec<char>,
+    length: usize,
+    thread_id: usize,
+    num_threads: usize,
+) -> Box<dyn Iterator<Item = String>> {
+    let charset_len = charset_vec.len();
+    Box::new((0..charset_len.pow(length as u32)).filter_map(move |i| {
+        // On ne garde que les indices qui correspondent à ce thread
+        if i % num_threads != thread_id { return None; }
         let mut result = String::with_capacity(length);
         let mut num = i;
         for _ in 0..length {
-            result.push(charset_vec[num % charset_vec.len()]);
-            num /= charset_vec.len();
+            result.push(charset_vec[num % charset_len]);
+            num /= charset_len;
         }
-        result
+        Some(result)
     }))
+}
+
+pub fn iter_dictionary_file(path: &str) -> Box<dyn Iterator<Item = String>> {
+    let file = std::fs::File::open(path).expect("Impossible d'ouvrir le fichier dictionnaire");
+    let reader = std::io::BufReader::new(file);
+    Box::new(reader.lines().filter_map(|l| l.ok()))
+}
+
+pub fn start_telemetry_thread(
+    is_running: Arc<Mutex<bool>>, 
+    total_attempts: Arc<Mutex<u64>>,
+    attempts_per_second: Arc<Mutex<u64>>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let mut last_print = Instant::now();
+        while *is_running.lock().unwrap() {
+            if last_print.elapsed() >= Duration::from_secs(1) {
+                let attempts = {
+                    let mut num = attempts_per_second.lock().unwrap();
+                    let val = *num;
+                    *num = 0;  // Reset the counter for attempts per second
+                    val
+                };
+                let total = *total_attempts.lock().unwrap();
+                print!("\rRecherche en cours - Tentatives: {} | Tentatives par seconde: {}", total, attempts);
+                io::stdout().flush().unwrap();
+                last_print = Instant::now();
+            }
+        }
+    })
 }
