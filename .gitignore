@@ -3,3 +3,7 @@ Cargo.lock
 
 # 
 /target
+
+dictionaries
+
+*.DS_Store

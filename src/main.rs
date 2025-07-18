@@ -12,7 +12,7 @@ use std::fs;
 
 fn detect_dictionaries() -> Vec<String> {
     let mut dicts = Vec::new();
-    for dir in &[".", "./assets"] {
+    for dir in &[".", "./dictionaries"] {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -30,17 +30,21 @@ fn detect_dictionaries() -> Vec<String> {
 fn download_rockyou() -> Option<String> {
     let url = "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt";
     let dest = "rockyou.txt";
-    println!("\x1b[33mTéléchargement du dictionnaire rockyou.txt...\x1b[0m");
+    println!("\x1b[33mTéléchargement du dictionnaire rockyou.txt (14 millions de mots de passe)...\x1b[0m");
+    println!("\x1b[36mSource: https://github.com/brannondorsey/naive-hashcat\x1b[0m");
     match reqwest::blocking::get(url) {
         Ok(resp) => {
             let mut out = std::fs::File::create(dest).ok()?;
             let content = resp.bytes().ok()?;
             std::io::copy(&mut content.as_ref(), &mut out).ok()?;
-            println!("\x1b[32mDictionnaire téléchargé avec succès !\x1b[0m");
+            println!("\x1b[32m✅ Dictionnaire rockyou.txt téléchargé avec succès !\x1b[0m");
+            println!("\x1b[36m📁 Fichier sauvegardé: {}\x1b[0m", dest);
             Some(dest.to_string())
         },
-        Err(_) => {
-            println!("\x1b[31mÉchec du téléchargement du dictionnaire.\x1b[0m");
+        Err(e) => {
+            println!("\x1b[31m❌ Échec du téléchargement du dictionnaire.\x1b[0m");
+            println!("\x1b[33mErreur: {}\x1b[0m", e);
+            println!("\x1b[36m💡 Vous pouvez télécharger manuellement rockyou.txt et le placer dans le dossier du programme.\x1b[0m");
             None
         }
     }
@@ -56,26 +60,33 @@ fn main() {
     // Détection automatique des dictionnaires
     let dictionaries = detect_dictionaries();
     let dictionary_path = if dictionaries.is_empty() {
-        println!("\x1b[31mAucun dictionnaire trouvé dans ./ ou ./assets.\x1b[0m");
-        println!("Voulez-vous télécharger un dictionnaire populaire (rockyou.txt) ? (o/n)");
+        println!("\x1b[31m❌ Aucun dictionnaire trouvé dans ./ ou ./dictionaries.\x1b[0m");
+        println!("\x1b[36m💡 Le programme peut télécharger automatiquement un dictionnaire populaire.\x1b[0m");
+        println!("Voulez-vous télécharger un dictionnaire populaire (rockyou.txt) ? (o/n) [O]");
         let mut dl_choice = String::new();
         stdin().read_line(&mut dl_choice).unwrap();
-        if dl_choice.trim().to_lowercase() == "o" {
+        let dl_choice = dl_choice.trim().to_lowercase();
+        if dl_choice.is_empty() || dl_choice == "o" {
             download_rockyou()
         } else {
             None
         }
     } else {
-        println!("\x1b[34mDictionnaires détectés :\x1b[0m");
+        println!("\x1b[34m📚 Dictionnaires détectés :\x1b[0m");
         for (i, dict) in dictionaries.iter().enumerate() {
             println!("  [{}] {}", i + 1, dict);
         }
-        println!("Veuillez choisir un dictionnaire (numéro) ou appuyez sur Entrée pour ne pas en utiliser :");
+        println!("  [{}] 📥 Télécharger rockyou.txt", dictionaries.len() + 1);
+        println!("  [{}] ❌ Ne pas utiliser de dictionnaire", dictionaries.len() + 2);
+        println!("\nVeuillez choisir une option (numéro) :");
         let mut dict_choice = String::new();
         stdin().read_line(&mut dict_choice).unwrap();
         if let Ok(idx) = dict_choice.trim().parse::<usize>() {
             if idx > 0 && idx <= dictionaries.len() {
                 Some(dictionaries[idx - 1].clone())
+            } else if idx == dictionaries.len() + 1 {
+                // Télécharger rockyou.txt
+                download_rockyou()
             } else {
                 None
             }
@@ -89,7 +100,23 @@ fn main() {
             Some(load_zipped_dictionary(&path))
         } else {
             // Mode streaming sera proposé plus loin
-            Some(fs::read_to_string(&path).unwrap().lines().map(|l| l.to_string()).collect())
+            match fs::read_to_string(&path) {
+                Ok(content) => Some(content.lines().map(|l| l.to_string()).collect()),
+                Err(_) => {
+                    // Si UTF-8 échoue, essayer de lire en bytes et convertir
+                    println!("\x1b[33m⚠️  Le fichier contient des caractères non-UTF8, tentative de conversion...\x1b[0m");
+                    match fs::read(&path) {
+                        Ok(bytes) => {
+                            let content = String::from_utf8_lossy(&bytes);
+                            Some(content.lines().map(|l| l.to_string()).collect())
+                        },
+                        Err(e) => {
+                            println!("\x1b[31m❌ Erreur lors de la lecture du fichier: {}\x1b[0m", e);
+                            None
+                        }
+                    }
+                }
+            }
         }
     } else {
         None
@@ -161,11 +188,14 @@ fn main() {
 
     // Demande à l'utilisateur s'il souhaite utiliser un mode gros dictionnaire (streaming)
     let mut use_streaming = String::new();
-    println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ? Utiliser le mode streaming ? (o/n) [N]");
+    println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ?");
+    println!("Mode streaming recommandé pour les fichiers >100MB");
+    println!("Utiliser le mode streaming ? (o/n) [N]");
     stdin().read_line(&mut use_streaming).unwrap();
     let use_streaming = use_streaming.trim().to_lowercase() == "o";
     let mut streaming_path = String::new();
     if use_streaming {
+        println!("\x1b[33m⚠️  Mode streaming activé\x1b[0m");
         println!("Veuillez entrer le chemin complet du fichier dictionnaire texte :");
         stdin().read_line(&mut streaming_path).unwrap();
         streaming_path = streaming_path.trim().to_string();
