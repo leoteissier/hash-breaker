@@ -1,5 +1,5 @@
 use hash_breaker::brute_force;
-use hash_breaker::hashing::hash_password;
+use hash_breaker::hashing::{hash_password, SaltPosition};
 use std::sync::{Arc, Mutex};
 
 #[test]
@@ -9,7 +9,7 @@ fn test_brute_force_found_with_dictionary() {
     let algorithm = "md5"; // Algorithme choisi (assurez-vous qu'il est pris en charge)
 
     // Calculer le hachage du mot de passe cible
-    let target_password_hash = hash_password(target_password, algorithm);
+    let target_password_hash = hash_password(target_password, algorithm, "", SaltPosition::After);
 
     // Créer un petit dictionnaire avec le mot de passe cible inclus
     let dictionary = vec![
@@ -35,6 +35,8 @@ fn test_brute_force_found_with_dictionary() {
         false,                    // use_streaming
         String::new(),            // streaming_path
         1,                        // num_threads
+        "".to_string(),           // salt
+        SaltPosition::After,      // salt_position
     );
 
     // Vérifier que la recherche s'est bien arrêtée
@@ -55,7 +57,7 @@ fn test_brute_force_not_found_with_dictionary() {
     let algorithm = "md5"; // Algorithme choisi
 
     // Calculer le hachage du mot de passe cible
-    let target_password_hash = hash_password(target_password, algorithm);
+    let target_password_hash = hash_password(target_password, algorithm, "", SaltPosition::After);
 
     // Créer un dictionnaire avec des mots de passe courts
     let dictionary = vec!["abc".to_string(), "def".to_string(), "ghi".to_string()];
@@ -76,6 +78,8 @@ fn test_brute_force_not_found_with_dictionary() {
         false,                    // use_streaming
         String::new(),            // streaming_path
         1,                        // num_threads
+        "".to_string(),           // salt
+        SaltPosition::After,      // salt_position
     );
 
     // Vérifier que la recherche s'est bien arrêtée
@@ -97,7 +101,7 @@ fn test_brute_force_found_without_dictionary() {
     let algorithm = "md5"; // Algorithme choisi (assurez-vous qu'il est pris en charge)
 
     // Calculer le hachage du mot de passe cible
-    let target_password_hash = hash_password(target_password, algorithm);
+    let target_password_hash = hash_password(target_password, algorithm, "", SaltPosition::After);
 
     let total_attempts = Arc::new(Mutex::new(0u64));
     let attempts_per_second = Arc::new(Mutex::new(0u64));
@@ -111,10 +115,12 @@ fn test_brute_force_found_without_dictionary() {
         Arc::clone(&total_attempts),
         Arc::clone(&attempts_per_second),
         Arc::clone(&is_running),
-        None,          // Pas de dictionnaire
-        false,         // use_streaming
-        String::new(), // streaming_path
-        1,             // num_threads
+        None,                // Pas de dictionnaire
+        false,               // use_streaming
+        String::new(),       // streaming_path
+        1,                   // num_threads
+        "".to_string(),      // salt
+        SaltPosition::After, // salt_position
     );
 
     // Vérifier que la recherche s'est bien arrêtée

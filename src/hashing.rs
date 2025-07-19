@@ -8,35 +8,44 @@ use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha512};
 
 /// Hash une chaîne de caractères en fonction de l'algorithme spécifié
-pub fn hash_password(password: &str, algorithm: &str) -> String {
+pub fn hash_password(
+    password: &str,
+    algorithm: &str,
+    salt: &str,
+    salt_position: SaltPosition,
+) -> String {
+    let input = match salt_position {
+        SaltPosition::Before => format!("{salt}{password}"),
+        SaltPosition::After => format!("{password}{salt}"),
+    };
     match algorithm.to_lowercase().as_str() {
         "md5" => {
-            let digest = md5::compute(password);
+            let digest = md5::compute(input.as_bytes());
             format!("{digest:x}")
         }
         "sha1" => {
             let mut hasher = Sha1::new();
-            hasher.update(password.as_bytes());
+            hasher.update(input.as_bytes());
             format!("{:x}", hasher.finalize())
         }
         "sha256" => {
             let mut hasher = Sha256::new();
-            hasher.update(password.as_bytes());
+            hasher.update(input.as_bytes());
             format!("{:x}", hasher.finalize())
         }
         "sha512" => {
             let mut hasher = Sha512::new();
-            hasher.update(password.as_bytes());
+            hasher.update(input.as_bytes());
             format!("{:x}", hasher.finalize())
         }
-        "bcrypt" => bcrypt_hash(password, 4).unwrap(),
+        "bcrypt" => bcrypt_hash(input, 4).unwrap(),
         "argon2" => {
             let salt = SaltString::generate(&mut OsRng);
             let argon2 = Argon2::default();
-            let hash = argon2.hash_password(password.as_bytes(), &salt).unwrap();
+            let hash = argon2.hash_password(input.as_bytes(), &salt).unwrap();
             hash.to_string()
         }
-        "base64" => general_purpose::STANDARD.encode(password),
+        "base64" => general_purpose::STANDARD.encode(input),
         _ => {
             panic!("Algorithme non supporté : {algorithm}");
         }
@@ -77,4 +86,10 @@ pub fn detect_algorithm(hash: &str) -> Result<String, &'static str> {
 /// Vérifie si une chaîne est un hexadécimal valide
 fn is_hex(hash: &str) -> bool {
     hash.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+#[derive(Copy, Clone)]
+pub enum SaltPosition {
+    Before,
+    After,
 }

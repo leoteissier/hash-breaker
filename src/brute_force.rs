@@ -1,3 +1,4 @@
+use crate::hashing::{hash_password, SaltPosition};
 use std::io::BufRead;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -14,6 +15,8 @@ pub fn start_brute_force(
     use_streaming: bool,
     streaming_path: String,
     num_threads: usize,
+    salt: String,
+    salt_position: SaltPosition,
 ) {
     if use_streaming {
         let mut handles = Vec::new();
@@ -25,6 +28,7 @@ pub fn start_brute_force(
             let total_attempts = Arc::clone(&total_attempts);
             let attempts_per_second = Arc::clone(&attempts_per_second);
             let found_flag = Arc::clone(&found_flag);
+            let salt = salt.clone();
             let handle = thread::spawn(move || {
                 for (i, word) in iter_dictionary_file(&path).enumerate() {
                     if i % num_threads != thread_id {
@@ -33,7 +37,7 @@ pub fn start_brute_force(
                     if !*found_flag.lock().unwrap() {
                         break;
                     }
-                    let attempt_hash = crate::hashing::hash_password(&word, &algorithm);
+                    let attempt_hash = hash_password(&word, &algorithm, &salt, salt_position);
                     {
                         let mut total = total_attempts.lock().unwrap();
                         *total += 1;
@@ -68,13 +72,15 @@ pub fn start_brute_force(
                 let total_attempts = Arc::clone(&total_attempts);
                 let attempts_per_second = Arc::clone(&attempts_per_second);
                 let found_flag = Arc::clone(&found_flag);
+                let salt = salt.clone();
                 let handle = thread::spawn(move || {
                     for word in chunk {
                         if !*found_flag.lock().unwrap() {
                             break;
                         }
                         let word_str = String::from_utf8_lossy(word.as_bytes()).to_string();
-                        let attempt_hash = crate::hashing::hash_password(&word_str, &algorithm);
+                        let attempt_hash =
+                            hash_password(&word_str, &algorithm, &salt, salt_position);
                         {
                             let mut total = total_attempts.lock().unwrap();
                             *total += 1;
@@ -109,6 +115,7 @@ pub fn start_brute_force(
         let total_attempts = Arc::clone(&total_attempts);
         let attempts_per_second = Arc::clone(&attempts_per_second);
         let found_flag = Arc::clone(&found_flag);
+        let salt = salt.clone();
         let handle = thread::spawn(move || {
             for length in 1.. {
                 let iter = if length == 1 {
@@ -131,7 +138,7 @@ pub fn start_brute_force(
                     if !*found_flag.lock().unwrap() {
                         break;
                     }
-                    let attempt_hash = crate::hashing::hash_password(&attempt, &algorithm);
+                    let attempt_hash = hash_password(&attempt, &algorithm, &salt, salt_position);
                     {
                         let mut total = total_attempts.lock().unwrap();
                         *total += 1;

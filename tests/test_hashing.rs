@@ -1,23 +1,23 @@
-use hash_breaker::hashing::{detect_algorithm, hash_password};
+use hash_breaker::hashing::{detect_algorithm, hash_password, SaltPosition};
 
 #[test]
 fn test_md5_hash() {
     let password = "password";
-    let hash = hash_password(password, "md5");
+    let hash = hash_password(password, "md5", "", SaltPosition::After);
     assert_eq!(hash, "5f4dcc3b5aa765d61d8327deb882cf99");
 }
 
 #[test]
 fn test_sha1_hash() {
     let password = "password";
-    let hash = hash_password(password, "sha1");
+    let hash = hash_password(password, "sha1", "", SaltPosition::After);
     assert_eq!(hash, "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8");
 }
 
 #[test]
 fn test_sha256_hash() {
     let password = "password";
-    let hash = hash_password(password, "sha256");
+    let hash = hash_password(password, "sha256", "", SaltPosition::After);
     assert_eq!(
         hash,
         "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
@@ -27,7 +27,7 @@ fn test_sha256_hash() {
 #[test]
 fn test_sha512_hash() {
     let password = "password";
-    let hash = hash_password(password, "sha512");
+    let hash = hash_password(password, "sha512", "", SaltPosition::After);
     assert_eq!(
         hash,
         "b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86"
@@ -37,21 +37,21 @@ fn test_sha512_hash() {
 #[test]
 fn test_bcrypt_hash() {
     let password = "password";
-    let hash = hash_password(password, "bcrypt");
+    let hash = hash_password(password, "bcrypt", "", SaltPosition::After);
     assert!(hash.starts_with("$2b$"));
 }
 
 #[test]
 fn test_argon2_hash() {
     let password = "password";
-    let hash = hash_password(password, "argon2");
+    let hash = hash_password(password, "argon2", "", SaltPosition::After);
     assert!(hash.starts_with("$argon2"));
 }
 
 #[test]
 fn test_base64_hash() {
     let password = "password";
-    let hash = hash_password(password, "base64");
+    let hash = hash_password(password, "base64", "", SaltPosition::After);
     assert_eq!(hash, "cGFzc3dvcmQ=");
 }
 
@@ -59,7 +59,7 @@ fn test_base64_hash() {
 fn test_invalid_algorithm() {
     let password = "password";
     let result = std::panic::catch_unwind(|| {
-        hash_password(password, "invalid_algo");
+        hash_password(password, "invalid_algo", "", SaltPosition::After);
     });
     assert!(result.is_err());
 }

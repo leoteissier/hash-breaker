@@ -65,6 +65,25 @@ fn main() {
     stdin().read_line(&mut target_password_hash).unwrap();
     target_password_hash = target_password_hash.trim().to_string();
 
+    // Demande le salt immédiatement
+    println!("Le hash utilise-t-il un salt connu ? (laisser vide si non)");
+    let mut salt = String::new();
+    stdin().read_line(&mut salt).unwrap();
+    let salt = salt.trim().to_string();
+
+    let salt_position = if !salt.is_empty() {
+        println!("Le salt est-il AVANT ou APRÈS le mot de passe ? (avant/après) [après]");
+        let mut pos = String::new();
+        stdin().read_line(&mut pos).unwrap();
+        if pos.trim().to_lowercase().starts_with("a") {
+            hashing::SaltPosition::Before
+        } else {
+            hashing::SaltPosition::After
+        }
+    } else {
+        hashing::SaltPosition::After
+    };
+
     // Détection automatique des dictionnaires
     let dictionaries = detect_dictionaries();
     let dictionary_path = if dictionaries.is_empty() {
@@ -105,6 +124,24 @@ fn main() {
             None
         }
     };
+
+    // Demande le mode streaming uniquement si un dictionnaire est choisi
+    let mut use_streaming = false;
+    let mut streaming_path = String::new();
+    if dictionary_path.is_some() {
+        println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ?");
+        println!("Mode streaming recommandé pour les fichiers >100MB");
+        println!("Utiliser le mode streaming ? (o/n) [N]");
+        let mut streaming_input = String::new();
+        stdin().read_line(&mut streaming_input).unwrap();
+        use_streaming = streaming_input.trim().to_lowercase() == "o";
+        if use_streaming {
+            println!("\x1b[33m⚠️  Mode streaming activé\x1b[0m");
+            println!("Veuillez entrer le chemin complet du fichier dictionnaire texte :");
+            stdin().read_line(&mut streaming_path).unwrap();
+            streaming_path = streaming_path.trim().to_string();
+        }
+    }
 
     let dictionary: Option<Vec<String>> = if let Some(path) = dictionary_path {
         if path.ends_with(".zip") {
@@ -207,21 +244,6 @@ fn main() {
         String::new()
     };
 
-    // Demande à l'utilisateur s'il souhaite utiliser un mode gros dictionnaire (streaming)
-    let mut use_streaming = String::new();
-    println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ?");
-    println!("Mode streaming recommandé pour les fichiers >100MB");
-    println!("Utiliser le mode streaming ? (o/n) [N]");
-    stdin().read_line(&mut use_streaming).unwrap();
-    let use_streaming = use_streaming.trim().to_lowercase() == "o";
-    let mut streaming_path = String::new();
-    if use_streaming {
-        println!("\x1b[33m⚠️  Mode streaming activé\x1b[0m");
-        println!("Veuillez entrer le chemin complet du fichier dictionnaire texte :");
-        stdin().read_line(&mut streaming_path).unwrap();
-        streaming_path = streaming_path.trim().to_string();
-    }
-
     let total_cores = num_cpus::get();
     println!("Votre machine possède {total_cores} cœurs logiques.");
     println!("Voulez-vous utiliser tous les cœurs disponibles ? (o/n) [O]");
@@ -270,6 +292,8 @@ fn main() {
         use_streaming,
         streaming_path,
         num_threads,
+        salt,
+        salt_position,
     );
 
     // Stop telemetry and spinner once the brute-force process ends
