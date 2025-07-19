@@ -30,17 +30,29 @@ pub fn load_zipped_dictionary(zip_path: &str) -> Vec<String> {
 
     let file_in_zip = file_in_zip.unwrap_or_else(|| {
         // Si aucun fichier texte trouvé, essayer les noms courants
-        let common_names = ["passwords.txt", "rockyou.txt", "wordlist.txt", "dictionary.txt"];
+        let common_names = [
+            "passwords.txt",
+            "rockyou.txt",
+            "wordlist.txt",
+            "dictionary.txt",
+        ];
         for name in &common_names {
             if archive.by_name(name).is_ok() {
                 return name.to_string();
             }
         }
-        panic!("Aucun fichier texte trouvé dans le ZIP. Fichiers disponibles: {:?}", 
-               (0..archive.len()).filter_map(|i| archive.by_index(i).ok().map(|f| f.name().to_string())).collect::<Vec<_>>());
+        panic!(
+            "Aucun fichier texte trouvé dans le ZIP. Fichiers disponibles: {:?}",
+            (0..archive.len())
+                .filter_map(|i| archive.by_index(i).ok().map(|f| f.name().to_string()))
+                .collect::<Vec<_>>()
+        );
     });
 
-    println!("\x1b[36m📁 Lecture du fichier '{}' dans le ZIP\x1b[0m", file_in_zip);
+    println!(
+        "\x1b[36m📁 Lecture du fichier '{}' dans le ZIP\x1b[0m",
+        file_in_zip
+    );
 
     // Try to locate the file inside the ZIP archive
     let mut file = match archive.by_name(&file_in_zip) {
@@ -60,8 +72,3 @@ pub fn load_zipped_dictionary(zip_path: &str) -> Vec<String> {
     // Split lines into Vec<String>
     contents_str.lines().map(|line| line.to_string()).collect()
 }
-
-
-
-
-

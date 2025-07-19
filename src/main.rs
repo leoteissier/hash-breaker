@@ -3,12 +3,12 @@ mod hashing;
 mod telemetry;
 mod utils;
 
-use utils::load_zipped_dictionary;
+use num_cpus;
+use std::fs;
 use std::io::stdin;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use num_cpus;
-use std::fs;
+use utils::load_zipped_dictionary;
 
 fn detect_dictionaries() -> Vec<String> {
     let mut dicts = Vec::new();
@@ -29,15 +29,18 @@ fn detect_dictionaries() -> Vec<String> {
 
 fn download_rockyou() -> Option<String> {
     let url = "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt";
-    
+
     // Créer le dossier dictionaries s'il n'existe pas
     if !std::path::Path::new("dictionaries").exists() {
         if let Err(e) = std::fs::create_dir("dictionaries") {
-            println!("\x1b[31m❌ Impossible de créer le dossier dictionaries: {}\x1b[0m", e);
+            println!(
+                "\x1b[31m❌ Impossible de créer le dossier dictionaries: {}\x1b[0m",
+                e
+            );
             return None;
         }
     }
-    
+
     let dest = "dictionaries/rockyou.txt";
     println!("\x1b[33mTéléchargement du dictionnaire rockyou.txt (14 millions de mots de passe)...\x1b[0m");
     println!("\x1b[36mSource: https://github.com/brannondorsey/naive-hashcat\x1b[0m");
@@ -49,7 +52,7 @@ fn download_rockyou() -> Option<String> {
             println!("\x1b[32m✅ Dictionnaire rockyou.txt téléchargé avec succès !\x1b[0m");
             println!("\x1b[36m📁 Fichier sauvegardé: {}\x1b[0m", dest);
             Some(dest.to_string())
-        },
+        }
         Err(e) => {
             println!("\x1b[31m❌ Échec du téléchargement du dictionnaire.\x1b[0m");
             println!("\x1b[33mErreur: {}\x1b[0m", e);
@@ -86,7 +89,10 @@ fn main() {
             println!("  [{}] {}", i + 1, dict);
         }
         println!("  [{}] 📥 Télécharger rockyou.txt", dictionaries.len() + 1);
-        println!("  [{}] ❌ Ne pas utiliser de dictionnaire", dictionaries.len() + 2);
+        println!(
+            "  [{}] ❌ Ne pas utiliser de dictionnaire",
+            dictionaries.len() + 2
+        );
         println!("\nVeuillez choisir une option (numéro) :");
         let mut dict_choice = String::new();
         stdin().read_line(&mut dict_choice).unwrap();
@@ -118,9 +124,12 @@ fn main() {
                         Ok(bytes) => {
                             let content = String::from_utf8_lossy(&bytes);
                             Some(content.lines().map(|l| l.to_string()).collect())
-                        },
+                        }
                         Err(e) => {
-                            println!("\x1b[31m❌ Erreur lors de la lecture du fichier: {}\x1b[0m", e);
+                            println!(
+                                "\x1b[31m❌ Erreur lors de la lecture du fichier: {}\x1b[0m",
+                                e
+                            );
                             None
                         }
                     }
@@ -157,32 +166,42 @@ fn main() {
             stdin().read_line(&mut chiffres).unwrap();
             let chiffres = chiffres.trim().to_lowercase();
             let chiffres = chiffres.is_empty() || chiffres == "o";
-            
+
             println!("Inclure les minuscules ? (o/n) [O]");
             let mut minuscules = String::new();
             stdin().read_line(&mut minuscules).unwrap();
             let minuscules = minuscules.trim().to_lowercase();
             let minuscules = minuscules.is_empty() || minuscules == "o";
-            
+
             println!("Inclure les majuscules ? (o/n) [O]");
             let mut majuscules = String::new();
             stdin().read_line(&mut majuscules).unwrap();
             let majuscules = majuscules.trim().to_lowercase();
             let majuscules = majuscules.is_empty() || majuscules == "o";
-            
+
             println!("Inclure les symboles spéciaux ? (o/n) [N]");
             let mut symboles = String::new();
             stdin().read_line(&mut symboles).unwrap();
             let symboles = symboles.trim().to_lowercase();
             let symboles = symboles == "o";
-            
+
             let mut cs = String::new();
-            if chiffres { cs.push_str("0123456789"); }
-            if minuscules { cs.push_str("abcdefghijklmnopqrstuvwxyz"); }
-            if majuscules { cs.push_str("ABCDEFGHIJKLMNOPQRSTUVWXYZ"); }
-            if symboles { cs.push_str("!@#$%^&*()_+-=[]{}|;:',.<>/?"); }
+            if chiffres {
+                cs.push_str("0123456789");
+            }
+            if minuscules {
+                cs.push_str("abcdefghijklmnopqrstuvwxyz");
+            }
+            if majuscules {
+                cs.push_str("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            }
+            if symboles {
+                cs.push_str("!@#$%^&*()_+-=[]{}|;:',.<>/?");
+            }
             if cs.is_empty() {
-                println!("Aucun jeu de caractères sélectionné, utilisation du jeu complet par défaut.");
+                println!(
+                    "Aucun jeu de caractères sélectionné, utilisation du jeu complet par défaut."
+                );
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
             } else {
                 cs
@@ -219,11 +238,18 @@ fn main() {
     let num_threads = if use_all_cores.is_empty() || use_all_cores == "o" {
         total_cores
     } else {
-        println!("Combien de cœurs souhaitez-vous utiliser ? (1-{})", total_cores);
+        println!(
+            "Combien de cœurs souhaitez-vous utiliser ? (1-{})",
+            total_cores
+        );
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
         let n = input.trim().parse::<usize>().unwrap_or(1);
-        if n > 0 && n <= total_cores { n } else { 1 }
+        if n > 0 && n <= total_cores {
+            n
+        } else {
+            1
+        }
     };
 
     let is_running = Arc::new(Mutex::new(true));
@@ -237,20 +263,18 @@ fn main() {
         Arc::clone(&attempts_per_second),
     );
     // Le spinner peut rester inchangé
-    let spinner_handle = telemetry::start_spinner_thread(
-        Arc::clone(&is_running),
-        Arc::clone(&total_attempts),
-    );
+    let spinner_handle =
+        telemetry::start_spinner_thread(Arc::clone(&is_running), Arc::clone(&total_attempts));
 
     let start = Instant::now();
 
     // Execute brute-force with the given dictionary and algorithm
     brute_force::start_brute_force(
-        &charset, 
-        &target_password_hash, 
+        &charset,
+        &target_password_hash,
         &algorithm,
-        Arc::clone(&total_attempts), 
-        Arc::clone(&attempts_per_second), 
+        Arc::clone(&total_attempts),
+        Arc::clone(&attempts_per_second),
         Arc::clone(&is_running),
         dictionary,
         use_streaming,
@@ -263,10 +287,13 @@ fn main() {
     *is_running.lock().unwrap() = false;
     telemetry_handle.join().unwrap();
     spinner_handle.join().unwrap();
-    
+
     // Display results
     let total = *total_attempts.lock().unwrap();
     let _per_sec = *attempts_per_second.lock().unwrap();
-    println!("\x1b[32m\nRecherche complétée en {:?} secondes avec {} tentatives\x1b[0m", duration, total);
+    println!(
+        "\x1b[32m\nRecherche complétée en {:?} secondes avec {} tentatives\x1b[0m",
+        duration, total
+    );
     println!("\x1b[1;33mSi le mot de passe a été trouvé, il est affiché ci-dessus.\x1b[0m");
 }

@@ -1,12 +1,12 @@
-use md5;
-use sha1::Sha1;
-use sha2::{Sha256, Sha512, Digest};
-use base64::{engine::general_purpose, Engine as _};
-use bcrypt::hash as bcrypt_hash;
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2,
 };
+use base64::{engine::general_purpose, Engine as _};
+use bcrypt::hash as bcrypt_hash;
+use md5;
+use sha1::Sha1;
+use sha2::{Digest, Sha256, Sha512};
 
 /// Hash une chaîne de caractères en fonction de l'algorithme spécifié
 pub fn hash_password(password: &str, algorithm: &str) -> String {
@@ -61,7 +61,7 @@ pub fn detect_algorithm(hash: &str) -> Result<String, &'static str> {
             64 => Ok(String::from("sha256")),  // 64 caractères -> SHA-256
             128 => Ok(String::from("sha512")), // 128 caractères -> SHA-512
             _ if hash.len() < 32 => Err("La chaîne est trop courte pour être un hachage valide"), // Trop court
-            _ => Err("Longueur de hachage hexadécimal non reconnue"),  // Longueur non reconnue
+            _ => Err("Longueur de hachage hexadécimal non reconnue"), // Longueur non reconnue
         };
     }
 

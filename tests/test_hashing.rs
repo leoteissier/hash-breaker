@@ -1,4 +1,4 @@
-use hash_breaker::hashing::{hash_password, detect_algorithm};
+use hash_breaker::hashing::{detect_algorithm, hash_password};
 
 #[test]
 fn test_md5_hash() {
@@ -18,14 +18,20 @@ fn test_sha1_hash() {
 fn test_sha256_hash() {
     let password = "password";
     let hash = hash_password(password, "sha256");
-    assert_eq!(hash, "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8");
+    assert_eq!(
+        hash,
+        "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+    );
 }
 
 #[test]
 fn test_sha512_hash() {
     let password = "password";
     let hash = hash_password(password, "sha512");
-    assert_eq!(hash, "b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86");
+    assert_eq!(
+        hash,
+        "b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86"
+    );
 }
 
 #[test]

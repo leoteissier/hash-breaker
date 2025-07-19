@@ -1,5 +1,5 @@
-use std::sync::{Arc, Mutex};
 use std::io::BufRead;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub fn start_brute_force(
@@ -26,8 +26,12 @@ pub fn start_brute_force(
             let found_flag = Arc::clone(&found_flag);
             let handle = thread::spawn(move || {
                 for (i, word) in iter_dictionary_file(&path).enumerate() {
-                    if i % num_threads != thread_id { continue; }
-                    if !*found_flag.lock().unwrap() { break; }
+                    if i % num_threads != thread_id {
+                        continue;
+                    }
+                    if !*found_flag.lock().unwrap() {
+                        break;
+                    }
                     let attempt_hash = crate::hashing::hash_password(&word, &algorithm);
                     {
                         let mut total = total_attempts.lock().unwrap();
@@ -44,7 +48,9 @@ pub fn start_brute_force(
             });
             handles.push(handle);
         }
-        for handle in handles { let _ = handle.join(); }
+        for handle in handles {
+            let _ = handle.join();
+        }
         *is_running.lock().unwrap() = false;
         return;
     }
@@ -63,7 +69,9 @@ pub fn start_brute_force(
                 let found_flag = Arc::clone(&found_flag);
                 let handle = thread::spawn(move || {
                     for word in chunk {
-                        if !*found_flag.lock().unwrap() { break; }
+                        if !*found_flag.lock().unwrap() {
+                            break;
+                        }
                         let word_str = String::from_utf8_lossy(word.as_bytes()).to_string();
                         let attempt_hash = crate::hashing::hash_password(&word_str, &algorithm);
                         {
@@ -81,7 +89,9 @@ pub fn start_brute_force(
                 });
                 handles.push(handle);
             }
-            for handle in handles { let _ = handle.join(); }
+            for handle in handles {
+                let _ = handle.join();
+            }
             *is_running.lock().unwrap() = false;
             return;
         }
@@ -109,10 +119,17 @@ pub fn start_brute_force(
                         }
                     })) as Box<dyn Iterator<Item = String>>
                 } else {
-                    Box::new(generate_combinations_iter_with_prefix(charset_vec.clone(), length, thread_id, num_threads)) as Box<dyn Iterator<Item = String>>
+                    Box::new(generate_combinations_iter_with_prefix(
+                        charset_vec.clone(),
+                        length,
+                        thread_id,
+                        num_threads,
+                    )) as Box<dyn Iterator<Item = String>>
                 };
                 for attempt in iter {
-                    if !*found_flag.lock().unwrap() { break; }
+                    if !*found_flag.lock().unwrap() {
+                        break;
+                    }
                     let attempt_hash = crate::hashing::hash_password(&attempt, &algorithm);
                     {
                         let mut total = total_attempts.lock().unwrap();
@@ -126,12 +143,16 @@ pub fn start_brute_force(
                         break;
                     }
                 }
-                if !*found_flag.lock().unwrap() { break; }
+                if !*found_flag.lock().unwrap() {
+                    break;
+                }
             }
         });
         handles.push(handle);
     }
-    for handle in handles { let _ = handle.join(); }
+    for handle in handles {
+        let _ = handle.join();
+    }
     *is_running.lock().unwrap() = false;
 }
 
@@ -145,7 +166,9 @@ pub fn generate_combinations_iter_with_prefix(
     let charset_len = charset_vec.len();
     Box::new((0..charset_len.pow(length as u32)).filter_map(move |i| {
         // On ne garde que les indices qui correspondent à ce thread
-        if i % num_threads != thread_id { return None; }
+        if i % num_threads != thread_id {
+            return None;
+        }
         let mut result = String::with_capacity(length);
         let mut num = i;
         for _ in 0..length {
@@ -161,5 +184,3 @@ pub fn iter_dictionary_file(path: &str) -> Box<dyn Iterator<Item = String>> {
     let reader = std::io::BufReader::new(file);
     Box::new(reader.lines().filter_map(|l| l.ok()))
 }
-
-
