@@ -20,8 +20,7 @@ pub fn start_telemetry_thread(
                 };
                 let total = *total_attempts.lock().unwrap();
                 print!(
-                    "\rRecherche en cours - Tentatives: {} | Tentatives par seconde: {}",
-                    total, attempts
+                    "\rRecherche en cours - Tentatives: {total} | Tentatives par seconde: {attempts}"
                 );
                 io::stdout().flush().unwrap();
                 last_print = Instant::now();

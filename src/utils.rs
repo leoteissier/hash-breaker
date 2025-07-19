@@ -7,13 +7,13 @@ pub fn load_zipped_dictionary(zip_path: &str) -> Vec<String> {
     // Try to open the ZIP file
     let file = match File::open(zip_path) {
         Ok(file) => file,
-        Err(err) => panic!("Unable to open the ZIP file: {}", err),
+        Err(err) => panic!("Unable to open the ZIP file: {err}"),
     };
 
     // Try to read the ZIP archive
     let mut archive = match ZipArchive::new(file) {
         Ok(archive) => archive,
-        Err(err) => panic!("Unable to read the ZIP archive: {}", err),
+        Err(err) => panic!("Unable to read the ZIP archive: {err}"),
     };
 
     // Chercher le premier fichier texte dans le ZIP
@@ -49,21 +49,18 @@ pub fn load_zipped_dictionary(zip_path: &str) -> Vec<String> {
         );
     });
 
-    println!(
-        "\x1b[36m📁 Lecture du fichier '{}' dans le ZIP\x1b[0m",
-        file_in_zip
-    );
+    println!("\x1b[36m📁 Lecture du fichier '{file_in_zip}' dans le ZIP\x1b[0m");
 
     // Try to locate the file inside the ZIP archive
     let mut file = match archive.by_name(&file_in_zip) {
         Ok(file) => file,
-        Err(err) => panic!("Unable to find '{}' in ZIP archive: {}", file_in_zip, err),
+        Err(err) => panic!("Unable to find '{file_in_zip}' in ZIP archive: {err}"),
     };
 
     let mut contents = Vec::new();
     // Try to read the file contents
     if let Err(err) = file.read_to_end(&mut contents) {
-        panic!("Error reading the file: {}", err);
+        panic!("Error reading the file: {err}");
     }
 
     // Convert the byte contents to a String

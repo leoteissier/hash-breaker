@@ -3,7 +3,6 @@ mod hashing;
 mod telemetry;
 mod utils;
 
-use num_cpus;
 use std::fs;
 use std::io::stdin;
 use std::sync::{Arc, Mutex};
@@ -33,10 +32,7 @@ fn download_rockyou() -> Option<String> {
     // Créer le dossier dictionaries s'il n'existe pas
     if !std::path::Path::new("dictionaries").exists() {
         if let Err(e) = std::fs::create_dir("dictionaries") {
-            println!(
-                "\x1b[31m❌ Impossible de créer le dossier dictionaries: {}\x1b[0m",
-                e
-            );
+            println!("\x1b[31m❌ Impossible de créer le dossier dictionaries: {e}\x1b[0m");
             return None;
         }
     }
@@ -50,12 +46,12 @@ fn download_rockyou() -> Option<String> {
             let content = resp.bytes().ok()?;
             std::io::copy(&mut content.as_ref(), &mut out).ok()?;
             println!("\x1b[32m✅ Dictionnaire rockyou.txt téléchargé avec succès !\x1b[0m");
-            println!("\x1b[36m📁 Fichier sauvegardé: {}\x1b[0m", dest);
+            println!("\x1b[36m📁 Fichier sauvegardé: {dest}\x1b[0m");
             Some(dest.to_string())
         }
         Err(e) => {
             println!("\x1b[31m❌ Échec du téléchargement du dictionnaire.\x1b[0m");
-            println!("\x1b[33mErreur: {}\x1b[0m", e);
+            println!("\x1b[33mErreur: {e}\x1b[0m");
             println!("\x1b[36m💡 Vous pouvez télécharger manuellement rockyou.txt et le placer dans le dossier dictionaries/.\x1b[0m");
             None
         }
@@ -126,10 +122,7 @@ fn main() {
                             Some(content.lines().map(|l| l.to_string()).collect())
                         }
                         Err(e) => {
-                            println!(
-                                "\x1b[31m❌ Erreur lors de la lecture du fichier: {}\x1b[0m",
-                                e
-                            );
+                            println!("\x1b[31m❌ Erreur lors de la lecture du fichier: {e}\x1b[0m");
                             None
                         }
                     }
@@ -143,11 +136,11 @@ fn main() {
     // Tentative de détection automatique de l'algorithme de hachage
     let algorithm = match hashing::detect_algorithm(&target_password_hash) {
         Ok(algo) => {
-            println!("Algorithme détecté : {}", algo);
+            println!("Algorithme détecté : {algo}");
             algo
         }
         Err(err) => {
-            println!("Erreur de détection automatique : {}. Veuillez spécifier l'algorithme (md5, sha1, sha256, sha512, bcrypt, argon2, base64) :", err);
+            println!("Erreur de détection automatique : {err}. Veuillez spécifier l'algorithme (md5, sha1, sha256, sha512, bcrypt, argon2, base64) :");
             let mut forced_algorithm = String::new();
             stdin().read_line(&mut forced_algorithm).unwrap();
             forced_algorithm.trim().to_string()
@@ -230,7 +223,7 @@ fn main() {
     }
 
     let total_cores = num_cpus::get();
-    println!("Votre machine possède {} cœurs logiques.", total_cores);
+    println!("Votre machine possède {total_cores} cœurs logiques.");
     println!("Voulez-vous utiliser tous les cœurs disponibles ? (o/n) [O]");
     let mut use_all_cores = String::new();
     stdin().read_line(&mut use_all_cores).unwrap();
@@ -238,10 +231,7 @@ fn main() {
     let num_threads = if use_all_cores.is_empty() || use_all_cores == "o" {
         total_cores
     } else {
-        println!(
-            "Combien de cœurs souhaitez-vous utiliser ? (1-{})",
-            total_cores
-        );
+        println!("Combien de cœurs souhaitez-vous utiliser ? (1-{total_cores})");
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
         let n = input.trim().parse::<usize>().unwrap_or(1);
@@ -292,8 +282,7 @@ fn main() {
     let total = *total_attempts.lock().unwrap();
     let _per_sec = *attempts_per_second.lock().unwrap();
     println!(
-        "\x1b[32m\nRecherche complétée en {:?} secondes avec {} tentatives\x1b[0m",
-        duration, total
+        "\x1b[32m\nRecherche complétée en {duration:?} secondes avec {total} tentatives\x1b[0m"
     );
     println!("\x1b[1;33mSi le mot de passe a été trouvé, il est affiché ci-dessus.\x1b[0m");
 }

@@ -121,8 +121,50 @@ hash-breaker/
 │   ├── telemetry.rs     # Affichage des statistiques
 │   └── utils.rs         # Utilitaires (gestion des dictionnaires)
 ├── tests/               # Tests unitaires
+├── scripts/             # Scripts de vérification
+│   ├── check.sh         # Vérification complète
+│   └── quick-check.sh   # Vérification rapide
 ├── assets/              # Dictionnaires par défaut
+├── Makefile             # Commandes de développement
 └── Cargo.toml           # Configuration du projet
+```
+
+## 🛠️ Développement
+
+### Prérequis
+
+- Rust 1.75.0 ou plus récent
+- Git
+
+### Vérification rapide avant commit
+
+```bash
+# Vérification rapide (recommandé avant chaque commit)
+make quick-check
+# ou
+./scripts/quick-check.sh
+```
+
+### Vérification complète
+
+```bash
+# Vérification complète (tests, formatage, clippy, documentation, etc.)
+make check
+# ou
+./scripts/check.sh
+```
+
+### Commandes utiles
+
+```bash
+make help          # Afficher toutes les commandes disponibles
+make test          # Exécuter les tests
+make format        # Formater le code
+make clippy        # Vérifier avec clippy
+make build         # Compiler en mode release
+make clean         # Nettoyer les fichiers de build
+make doc           # Générer la documentation
+make install-tools # Installer les outils de développement
 ```
 
 ## CI/CD et Tests

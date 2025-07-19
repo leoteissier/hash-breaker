@@ -38,14 +38,13 @@ fn test_brute_force_found_with_dictionary() {
     );
 
     // Vérifier que la recherche s'est bien arrêtée
-    assert_eq!(*is_running.lock().unwrap(), false);
+    assert!(!(*is_running.lock().unwrap()));
 
     // Vérifier que le nombre de tentatives correspond à la position du mot de passe dans le dictionnaire
     let attempts = *total_attempts.lock().unwrap();
     assert_eq!(
         attempts, 3,
-        "Le nombre de tentatives doit être égal à 3, mais était {}",
-        attempts
+        "Le nombre de tentatives doit être égal à 3, mais était {attempts}"
     );
 }
 
@@ -80,7 +79,7 @@ fn test_brute_force_not_found_with_dictionary() {
     );
 
     // Vérifier que la recherche s'est bien arrêtée
-    assert_eq!(*is_running.lock().unwrap(), false);
+    assert!(!(*is_running.lock().unwrap()));
 
     // Vérifier que le nombre de tentatives correspond à la taille du dictionnaire
     let attempts = *total_attempts.lock().unwrap();
@@ -119,7 +118,7 @@ fn test_brute_force_found_without_dictionary() {
     );
 
     // Vérifier que la recherche s'est bien arrêtée
-    assert_eq!(*is_running.lock().unwrap(), false);
+    assert!(!(*is_running.lock().unwrap()));
 
     // Le mot de passe "abc" sera trouvé au bout d'un certain nombre de combinaisons
     let attempts = *total_attempts.lock().unwrap();

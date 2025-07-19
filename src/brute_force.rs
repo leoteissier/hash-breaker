@@ -2,6 +2,7 @@ use std::io::BufRead;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[allow(clippy::too_many_arguments)]
 pub fn start_brute_force(
     charset: &str,
     target_password_hash: &str,
@@ -40,7 +41,7 @@ pub fn start_brute_force(
                         *attempts_per_sec += 1;
                     }
                     if attempt_hash == target_password_hash {
-                        println!("\n\x1b[1;32mMot de passe trouvé : {}\x1b[0m", word);
+                        println!("\n\x1b[1;32mMot de passe trouvé : {word}\x1b[0m");
                         *found_flag.lock().unwrap() = false;
                         break;
                     }
@@ -57,7 +58,7 @@ pub fn start_brute_force(
 
     if let Some(dict) = dictionary {
         if !dict.is_empty() {
-            let chunk_size = (dict.len() + num_threads - 1) / num_threads;
+            let chunk_size = dict.len().div_ceil(num_threads);
             let mut handles = Vec::new();
             let found_flag = Arc::clone(&is_running);
             for chunk in dict.chunks(chunk_size) {
@@ -81,7 +82,7 @@ pub fn start_brute_force(
                             *attempts_per_sec += 1;
                         }
                         if attempt_hash == target_password_hash {
-                            println!("\n\x1b[1;32mMot de passe trouvé : {}\x1b[0m", word_str);
+                            println!("\n\x1b[1;32mMot de passe trouvé : {word_str}\x1b[0m");
                             *found_flag.lock().unwrap() = false;
                             break;
                         }
@@ -138,7 +139,7 @@ pub fn start_brute_force(
                         *attempts_per_sec += 1;
                     }
                     if attempt_hash == target_password_hash {
-                        println!("\n\x1b[1;32mMot de passe trouvé : {}\x1b[0m", attempt);
+                        println!("\n\x1b[1;32mMot de passe trouvé : {attempt}\x1b[0m");
                         *found_flag.lock().unwrap() = false;
                         break;
                     }
@@ -182,5 +183,5 @@ pub fn generate_combinations_iter_with_prefix(
 pub fn iter_dictionary_file(path: &str) -> Box<dyn Iterator<Item = String>> {
     let file = std::fs::File::open(path).expect("Impossible d'ouvrir le fichier dictionnaire");
     let reader = std::io::BufReader::new(file);
-    Box::new(reader.lines().filter_map(|l| l.ok()))
+    Box::new(reader.lines().map_while(Result::ok))
 }
