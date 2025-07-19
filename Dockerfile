@@ -1,5 +1,13 @@
 # Étape 1 : Utiliser une image Rust officielle pour la compilation
-FROM rust:1.80-slim-bullseye AS build
+FROM rust:1.82-slim-bullseye AS build
+
+# Installer les dépendances système nécessaires à la compilation de crates (openssl, pkg-config, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    build-essential \
+ && rm -rf /var/lib/apt/lists/*
 
 # Définir le répertoire de travail à la racine
 WORKDIR /app
