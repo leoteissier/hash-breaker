@@ -26,7 +26,13 @@ COPY . .
 RUN cargo build --release
 
 # Étape 2 : Créer une image plus légère avec seulement le binaire
-FROM debian:buster-slim
+FROM debian:bullseye-slim
+
+# Installer les bibliothèques runtime (libssl pour reqwest/bcrypt, ca-certificates pour HTTPS)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl1.1 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copier le binaire depuis l'étape de compilation
 COPY --from=build /app/target/release/hash_breaker /app/hash_breaker
@@ -34,5 +40,5 @@ COPY --from=build /app/target/release/hash_breaker /app/hash_breaker
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Exécuter le binaire
-CMD ["./hash_breaker"]
+# ENTRYPOINT permet de passer des arguments (ex: --help) au binaire
+ENTRYPOINT ["./hash_breaker"]

@@ -1,4 +1,4 @@
-use crate::hashing::{hash_password, SaltPosition};
+use crate::hashing::{verify_password, SaltPosition};
 use std::io::BufRead;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -37,14 +37,13 @@ pub fn start_brute_force(
                     if !*found_flag.lock().unwrap() {
                         break;
                     }
-                    let attempt_hash = hash_password(&word, &algorithm, &salt, salt_position);
                     {
                         let mut total = total_attempts.lock().unwrap();
                         *total += 1;
                         let mut attempts_per_sec = attempts_per_second.lock().unwrap();
                         *attempts_per_sec += 1;
                     }
-                    if attempt_hash == target_password_hash {
+                    if verify_password(&word, &target_password_hash, &algorithm, &salt, salt_position) {
                         println!("\n\x1b[1;32mMot de passe trouvé : {word}\x1b[0m");
                         *found_flag.lock().unwrap() = false;
                         break;
@@ -79,15 +78,13 @@ pub fn start_brute_force(
                             break;
                         }
                         let word_str = String::from_utf8_lossy(word.as_bytes()).to_string();
-                        let attempt_hash =
-                            hash_password(&word_str, &algorithm, &salt, salt_position);
                         {
                             let mut total = total_attempts.lock().unwrap();
                             *total += 1;
                             let mut attempts_per_sec = attempts_per_second.lock().unwrap();
                             *attempts_per_sec += 1;
                         }
-                        if attempt_hash == target_password_hash {
+                        if verify_password(&word_str, &target_password_hash, &algorithm, &salt, salt_position) {
                             println!("\n\x1b[1;32mMot de passe trouvé : {word_str}\x1b[0m");
                             *found_flag.lock().unwrap() = false;
                             break;
@@ -138,14 +135,13 @@ pub fn start_brute_force(
                     if !*found_flag.lock().unwrap() {
                         break;
                     }
-                    let attempt_hash = hash_password(&attempt, &algorithm, &salt, salt_position);
                     {
                         let mut total = total_attempts.lock().unwrap();
                         *total += 1;
                         let mut attempts_per_sec = attempts_per_second.lock().unwrap();
                         *attempts_per_sec += 1;
                     }
-                    if attempt_hash == target_password_hash {
+                    if verify_password(&attempt, &target_password_hash, &algorithm, &salt, salt_position) {
                         println!("\n\x1b[1;32mMot de passe trouvé : {attempt}\x1b[0m");
                         *found_flag.lock().unwrap() = false;
                         break;

@@ -1,29 +1,40 @@
 mod brute_force;
+mod config;
 mod hashing;
 mod telemetry;
 mod utils;
 
 use std::fs;
-use std::io::stdin;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use utils::load_zipped_dictionary;
 
-fn detect_dictionaries() -> Vec<String> {
-    let mut dicts = Vec::new();
-    for dir in &[".", "./dictionaries"] {
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if ext == "txt" || ext == "zip" {
-                        dicts.push(path.display().to_string());
-                    }
-                }
-            }
-        }
-    }
-    dicts
+use clap::Parser;
+
+/// HashBreaker - Outil de brute-force de mot de passe
+#[derive(Parser, Debug)]
+#[command(name = "hash-breaker")]
+#[command(author, version, about = "Outil de brute-force de mot de passe écrit en Rust")]
+struct Args {
+    /// Hash du mot de passe à cracker (évite la question interactive)
+    #[arg(long)]
+    hash: Option<String>,
+
+    /// Chemin vers le dictionnaire (évite la sélection interactive)
+    #[arg(long, short)]
+    dictionary: Option<String>,
+
+    /// Algorithme de hachage (md5, sha1, sha256, sha512, bcrypt, argon2, base64)
+    #[arg(long, short)]
+    algorithm: Option<String>,
+
+    /// Nombre de threads à utiliser
+    #[arg(long, short)]
+    threads: Option<usize>,
+
+    /// Mode non-interactif (utilise les valeurs par défaut pour les questions)
+    #[arg(long)]
+    non_interactive: bool,
 }
 
 fn download_rockyou() -> Option<String> {
@@ -59,210 +70,132 @@ fn download_rockyou() -> Option<String> {
 }
 
 fn main() {
+    let args = Args::parse();
+
     // Demande à l'utilisateur de fournir le mot de passe haché à brute-forcer
-    println!("Veuillez entrer le mot de passe haché à brute-forcer :");
-    let mut target_password_hash = String::new();
-    stdin().read_line(&mut target_password_hash).unwrap();
-    target_password_hash = target_password_hash.trim().to_string();
+    let target_password_hash = args.hash.unwrap_or_else(|| {
+        config::read_line("Veuillez entrer le mot de passe haché à brute-forcer :")
+    });
 
-    // Demande le salt immédiatement
-    println!("Le hash utilise-t-il un salt connu ? (laisser vide si non)");
-    let mut salt = String::new();
-    stdin().read_line(&mut salt).unwrap();
-    let salt = salt.trim().to_string();
+    if target_password_hash.is_empty() {
+        eprintln!("\x1b[31m❌ Hash vide. Utilisez --hash ou entrez un hash valide.\x1b[0m");
+        std::process::exit(1);
+    }
 
-    let salt_position = if !salt.is_empty() {
-        println!("Le salt est-il AVANT ou APRÈS le mot de passe ? (avant/après) [après]");
-        let mut pos = String::new();
-        stdin().read_line(&mut pos).unwrap();
-        if pos.trim().to_lowercase().starts_with("a") {
-            hashing::SaltPosition::Before
-        } else {
-            hashing::SaltPosition::After
-        }
+    // Demande le salt
+    let salt = if args.non_interactive {
+        String::new()
+    } else {
+        config::read_line("Le hash utilise-t-il un salt connu ? (laisser vide si non)")
+    };
+
+    let salt_position = if !salt.is_empty() && !args.non_interactive {
+        config::ask_salt_position()
     } else {
         hashing::SaltPosition::After
     };
 
     // Détection automatique des dictionnaires
-    let dictionaries = detect_dictionaries();
-    let dictionary_path = if dictionaries.is_empty() {
-        println!("\x1b[31m❌ Aucun dictionnaire trouvé dans ./ ou ./dictionaries.\x1b[0m");
-        println!("\x1b[36m💡 Le programme peut télécharger automatiquement un dictionnaire populaire.\x1b[0m");
-        println!("Voulez-vous télécharger un dictionnaire populaire (rockyou.txt) ? (o/n) [O]");
-        let mut dl_choice = String::new();
-        stdin().read_line(&mut dl_choice).unwrap();
-        let dl_choice = dl_choice.trim().to_lowercase();
-        if dl_choice.is_empty() || dl_choice == "o" {
-            download_rockyou()
-        } else {
-            None
-        }
-    } else {
-        println!("\x1b[34m📚 Dictionnaires détectés :\x1b[0m");
-        for (i, dict) in dictionaries.iter().enumerate() {
-            println!("  [{}] {}", i + 1, dict);
-        }
-        println!("  [{}] 📥 Télécharger rockyou.txt", dictionaries.len() + 1);
-        println!(
-            "  [{}] ❌ Ne pas utiliser de dictionnaire",
-            dictionaries.len() + 2
-        );
-        println!("\nVeuillez choisir une option (numéro) :");
-        let mut dict_choice = String::new();
-        stdin().read_line(&mut dict_choice).unwrap();
-        if let Ok(idx) = dict_choice.trim().parse::<usize>() {
-            if idx > 0 && idx <= dictionaries.len() {
-                Some(dictionaries[idx - 1].clone())
-            } else if idx == dictionaries.len() + 1 {
-                // Télécharger rockyou.txt
+    let dictionaries = config::detect_dictionaries();
+    let dictionary_path = args.dictionary.or_else(|| {
+        if dictionaries.is_empty() {
+            println!("\x1b[31m❌ Aucun dictionnaire trouvé dans ./, ./dictionaries/ ou ./assets/.\x1b[0m");
+            println!("\x1b[36m💡 Le programme peut télécharger automatiquement un dictionnaire populaire.\x1b[0m");
+            if config::read_yes_no("Voulez-vous télécharger un dictionnaire populaire (rockyou.txt) ? (o/n) [O]", true) {
                 download_rockyou()
             } else {
                 None
             }
         } else {
-            None
+            println!("\x1b[34m📚 Dictionnaires détectés :\x1b[0m");
+            for (i, dict) in dictionaries.iter().enumerate() {
+                println!("  [{}] {}", i + 1, dict);
+            }
+            println!("  [{}] 📥 Télécharger rockyou.txt", dictionaries.len() + 1);
+            println!("  [{}] ❌ Ne pas utiliser de dictionnaire", dictionaries.len() + 2);
+            let choice = config::read_line("\nVeuillez choisir une option (numéro) :");
+            if let Ok(idx) = choice.parse::<usize>() {
+                if idx > 0 && idx <= dictionaries.len() {
+                    Some(dictionaries[idx - 1].clone())
+                } else if idx == dictionaries.len() + 1 {
+                    download_rockyou()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         }
-    };
+    });
 
-    // Demande le mode streaming uniquement si un dictionnaire est choisi
-    let mut use_streaming = false;
-    let mut streaming_path = String::new();
-    if dictionary_path.is_some() {
-        println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ?");
-        println!("Mode streaming recommandé pour les fichiers >100MB");
-        println!("Utiliser le mode streaming ? (o/n) [N]");
-        let mut streaming_input = String::new();
-        stdin().read_line(&mut streaming_input).unwrap();
-        use_streaming = streaming_input.trim().to_lowercase() == "o";
-        if use_streaming {
-            println!("\x1b[33m⚠️  Mode streaming activé\x1b[0m");
-            println!("Veuillez entrer le chemin complet du fichier dictionnaire texte :");
-            stdin().read_line(&mut streaming_path).unwrap();
-            streaming_path = streaming_path.trim().to_string();
-        }
-    }
-
-    let dictionary: Option<Vec<String>> = if let Some(path) = dictionary_path {
+    // Demande le mode streaming AVANT de charger (uniquement pour les dictionnaires .txt)
+    let (use_streaming, streaming_path, dictionary) = if let Some(path) = dictionary_path.as_ref() {
         if path.ends_with(".zip") {
-            Some(load_zipped_dictionary(&path))
+            // Les ZIP sont toujours chargés en mémoire
+            let dict = Some(load_zipped_dictionary(path));
+            (false, String::new(), dict)
         } else {
-            // Mode streaming sera proposé plus loin
-            match fs::read_to_string(&path) {
-                Ok(content) => Some(content.lines().map(|l| l.to_string()).collect()),
-                Err(_) => {
-                    // Si UTF-8 échoue, essayer de lire en bytes et convertir
-                    println!("\x1b[33m⚠️  Le fichier contient des caractères non-UTF8, tentative de conversion...\x1b[0m");
-                    match fs::read(&path) {
-                        Ok(bytes) => {
-                            let content = String::from_utf8_lossy(&bytes);
-                            Some(content.lines().map(|l| l.to_string()).collect())
-                        }
-                        Err(e) => {
-                            println!("\x1b[31m❌ Erreur lors de la lecture du fichier: {e}\x1b[0m");
-                            None
+            // Pour les .txt : proposer le streaming avant de charger
+            println!("Votre dictionnaire est-il trop volumineux pour être chargé en mémoire ?");
+            println!("Mode streaming recommandé pour les fichiers >100MB");
+            let use_streaming = config::read_yes_no("Utiliser le mode streaming ? (o/n) [N]", false);
+            if use_streaming {
+                println!("\x1b[33m⚠️  Mode streaming activé\x1b[0m");
+                (true, path.clone(), None)
+            } else {
+                match fs::read_to_string(path) {
+                    Ok(content) => (
+                        false,
+                        String::new(),
+                        Some(content.lines().map(|l| l.to_string()).collect()),
+                    ),
+                    Err(_) => {
+                        println!("\x1b[33m⚠️  Le fichier contient des caractères non-UTF8, tentative de conversion...\x1b[0m");
+                        match fs::read(path) {
+                            Ok(bytes) => {
+                                let content = String::from_utf8_lossy(&bytes);
+                                (
+                                    false,
+                                    String::new(),
+                                    Some(content.lines().map(|l| l.to_string()).collect()),
+                                )
+                            }
+                            Err(e) => {
+                                println!("\x1b[31m❌ Erreur lors de la lecture du fichier: {e}\x1b[0m");
+                                (false, String::new(), None)
+                            }
                         }
                     }
                 }
             }
         }
     } else {
-        None
+        (false, String::new(), None)
     };
 
     // Tentative de détection automatique de l'algorithme de hachage
-    let algorithm = match hashing::detect_algorithm(&target_password_hash) {
-        Ok(algo) => {
-            println!("Algorithme détecté : {algo}");
-            algo
+    let algorithm = args.algorithm.unwrap_or_else(|| {
+        match hashing::detect_algorithm(&target_password_hash) {
+            Ok(algo) => {
+                println!("Algorithme détecté : {algo}");
+                algo
+            }
+            Err(err) => {
+                config::read_line(&format!(
+                    "Erreur de détection : {err}. Spécifiez l'algorithme (md5, sha1, sha256, sha512, bcrypt, argon2, base64) :"
+                ))
+            }
         }
-        Err(err) => {
-            println!("Erreur de détection automatique : {err}. Veuillez spécifier l'algorithme (md5, sha1, sha256, sha512, bcrypt, argon2, base64) :");
-            let mut forced_algorithm = String::new();
-            stdin().read_line(&mut forced_algorithm).unwrap();
-            forced_algorithm.trim().to_string()
-        }
-    };
+    });
 
-    // Demande à l'utilisateur de personnaliser le charset SEULEMENT si pas de dictionnaire
+    // Charset : personnaliser seulement si pas de dictionnaire
     let charset = if dictionary.is_none() {
-        println!("Voulez-vous personnaliser le jeu de caractères utilisé pour le brute-force ? (o/n) [N]");
-        let mut custom_charset = String::new();
-        stdin().read_line(&mut custom_charset).unwrap();
-        let custom_charset = custom_charset.trim().to_lowercase();
-        if custom_charset == "o" {
-            println!("Inclure les chiffres ? (o/n) [O]");
-            let mut chiffres = String::new();
-            stdin().read_line(&mut chiffres).unwrap();
-            let chiffres = chiffres.trim().to_lowercase();
-            let chiffres = chiffres.is_empty() || chiffres == "o";
-
-            println!("Inclure les minuscules ? (o/n) [O]");
-            let mut minuscules = String::new();
-            stdin().read_line(&mut minuscules).unwrap();
-            let minuscules = minuscules.trim().to_lowercase();
-            let minuscules = minuscules.is_empty() || minuscules == "o";
-
-            println!("Inclure les majuscules ? (o/n) [O]");
-            let mut majuscules = String::new();
-            stdin().read_line(&mut majuscules).unwrap();
-            let majuscules = majuscules.trim().to_lowercase();
-            let majuscules = majuscules.is_empty() || majuscules == "o";
-
-            println!("Inclure les symboles spéciaux ? (o/n) [N]");
-            let mut symboles = String::new();
-            stdin().read_line(&mut symboles).unwrap();
-            let symboles = symboles.trim().to_lowercase();
-            let symboles = symboles == "o";
-
-            let mut cs = String::new();
-            if chiffres {
-                cs.push_str("0123456789");
-            }
-            if minuscules {
-                cs.push_str("abcdefghijklmnopqrstuvwxyz");
-            }
-            if majuscules {
-                cs.push_str("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-            }
-            if symboles {
-                cs.push_str("!@#$%^&*()_+-=[]{}|;:',.<>/?");
-            }
-            if cs.is_empty() {
-                println!(
-                    "Aucun jeu de caractères sélectionné, utilisation du jeu complet par défaut."
-                );
-                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
-            } else {
-                cs
-            }
-        } else {
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:',.<>/?".to_string()
-        }
+        config::build_charset()
     } else {
-        // Si on a un dictionnaire, on utilise un charset vide car on ne fait que du dictionnaire
         String::new()
     };
 
-    let total_cores = num_cpus::get();
-    println!("Votre machine possède {total_cores} cœurs logiques.");
-    println!("Voulez-vous utiliser tous les cœurs disponibles ? (o/n) [O]");
-    let mut use_all_cores = String::new();
-    stdin().read_line(&mut use_all_cores).unwrap();
-    let use_all_cores = use_all_cores.trim().to_lowercase();
-    let num_threads = if use_all_cores.is_empty() || use_all_cores == "o" {
-        total_cores
-    } else {
-        println!("Combien de cœurs souhaitez-vous utiliser ? (1-{total_cores})");
-        let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
-        let n = input.trim().parse::<usize>().unwrap_or(1);
-        if n > 0 && n <= total_cores {
-            n
-        } else {
-            1
-        }
-    };
+    let num_threads = args.threads.unwrap_or_else(config::ask_num_threads);
 
     let is_running = Arc::new(Mutex::new(true));
     let attempts_per_second = Arc::new(Mutex::new(0));

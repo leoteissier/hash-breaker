@@ -1,4 +1,4 @@
-use hash_breaker::hashing::{detect_algorithm, hash_password, SaltPosition};
+use hash_breaker::hashing::{detect_algorithm, hash_password, verify_password, SaltPosition};
 
 #[test]
 fn test_md5_hash() {
@@ -120,4 +120,27 @@ fn test_detect_invalid_algorithm() {
     let hash = "invalidhash";
     let result = detect_algorithm(hash);
     assert!(result.is_err());
+}
+
+/// Tests pour verify_password (bcrypt et argon2 utilisent le salt intégré au hash)
+#[test]
+fn test_verify_bcrypt() {
+    // Hash bcrypt connu pour "password" (cost 4)
+    let hash = hash_password("password", "bcrypt", "", SaltPosition::After);
+    assert!(verify_password("password", &hash, "bcrypt", "", SaltPosition::After));
+    assert!(!verify_password("wrong", &hash, "bcrypt", "", SaltPosition::After));
+}
+
+#[test]
+fn test_verify_argon2() {
+    let hash = hash_password("password", "argon2", "", SaltPosition::After);
+    assert!(verify_password("password", &hash, "argon2", "", SaltPosition::After));
+    assert!(!verify_password("wrong", &hash, "argon2", "", SaltPosition::After));
+}
+
+#[test]
+fn test_verify_md5_with_salt() {
+    let hash = hash_password("pass", "md5", "salt", SaltPosition::After);
+    assert!(verify_password("pass", &hash, "md5", "salt", SaltPosition::After));
+    assert!(!verify_password("pass", &hash, "md5", "salt", SaltPosition::Before));
 }
